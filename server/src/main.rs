@@ -2,7 +2,7 @@ mod db;
 
 use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use serde_json::json;
-use tracing::{info, error};
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone)]
@@ -39,14 +39,14 @@ async fn main() -> anyhow::Result<()> {
     db::run_migrations(&db_pool)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to run database migrations: {}", e))?;
-    
+
     info!("Database migrations completed successfully");
 
     // Test database connectivity
     db::check_connection(&db_pool)
         .await
         .map_err(|e| anyhow::anyhow!("Database connectivity test failed: {}", e))?;
-    
+
     info!("Database connectivity verified");
 
     // Create application state
@@ -64,11 +64,12 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "8080".to_string())
         .parse()
         .unwrap_or(8080);
-    
+
     let addr_str = format!("{}:{}", server_host, server_port);
-    let addr: std::net::SocketAddr = addr_str.parse()
+    let addr: std::net::SocketAddr = addr_str
+        .parse()
         .map_err(|e| anyhow::anyhow!("Invalid server address: {}", e))?;
-    
+
     info!("OpenMMO server listening on {}", addr_str);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

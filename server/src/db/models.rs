@@ -1,14 +1,18 @@
+// Allow dead code warnings for Phase 0 infrastructure
+#[allow(dead_code)]
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct Account {
     pub id: Uuid,
     pub username: String,
     pub email: String,
     #[serde(skip_serializing)]
+    #[allow(dead_code)]
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -20,6 +24,7 @@ pub struct Account {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct Character {
     pub id: Uuid,
     pub account_id: Uuid,
@@ -44,6 +49,7 @@ pub struct Character {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct CharacterStats {
     pub id: Uuid,
     pub character_id: Uuid,
@@ -54,6 +60,7 @@ pub struct CharacterStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct InventoryItem {
     pub id: Uuid,
     pub character_id: Uuid,
@@ -73,6 +80,7 @@ pub struct InventoryItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct EquippedItem {
     pub id: Uuid,
     pub character_id: Uuid,
@@ -83,6 +91,7 @@ pub struct EquippedItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct Progression {
     pub id: Uuid,
     pub character_id: Uuid,
@@ -96,6 +105,7 @@ pub struct Progression {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[allow(dead_code)]
 pub struct QuestState {
     pub id: Uuid,
     pub character_id: Uuid,

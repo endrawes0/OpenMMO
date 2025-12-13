@@ -26,8 +26,6 @@ pub async fn run_migrations(pool: &sqlx::PgPool) -> Result<(), sqlx::migrate::Mi
 
 /// Checks database connectivity
 pub async fn check_connection(pool: &sqlx::PgPool) -> Result<(), sqlx::Error> {
-    sqlx::query("SELECT 1")
-        .fetch_one(pool)
-        .await?;
+    sqlx::query("SELECT 1").fetch_one(pool).await?;
     Ok(())
 }

@@ -1,28 +1,29 @@
+// Allow dead code warnings for Phase 0 infrastructure
+#[allow(dead_code)]
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
-    use super::*;
-    use crate::db;
     use uuid::Uuid;
 
     #[tokio::test]
     async fn test_database_connection_string_parsing() {
         // Test that we can parse a valid database URL
         let database_url = "postgres://user:pass@localhost:5432/dbname";
-        
+
         // This should not panic when creating a pool config
         let _pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
             .connect_lazy(database_url);
-        
+
         // If we get here, the URL parsing worked
-        assert!(true);
+        // URL parsing successful - no assertion needed
     }
 
     #[tokio::test]
     async fn test_account_model_serialization() {
         use crate::db::models::Account;
         use chrono::Utc;
-        
+
         let account = Account {
             id: Uuid::new_v4(),
             username: "testuser".to_string(),
@@ -48,7 +49,7 @@ mod tests {
     async fn test_character_model_creation() {
         use crate::db::models::Character;
         use chrono::Utc;
-        
+
         let character = Character {
             id: Uuid::new_v4(),
             account_id: Uuid::new_v4(),
@@ -83,14 +84,14 @@ mod tests {
     #[test]
     fn test_database_error_types() {
         use crate::db::queries::DatabaseError;
-        
+
         // Test that our error types can be created
         let _error = DatabaseError::AccountNotFound;
         let _error = DatabaseError::CharacterNotFound;
         let _error = DatabaseError::UsernameExists;
         let _error = DatabaseError::EmailExists;
         let _error = DatabaseError::CharacterNameExists;
-        
+
         // Test error formatting
         let error = DatabaseError::AccountNotFound;
         assert_eq!(error.to_string(), "Account not found");

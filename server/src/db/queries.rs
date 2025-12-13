@@ -1,10 +1,13 @@
+// Allow dead code warnings for Phase 0 infrastructure
+#[allow(dead_code)]
 use super::models::*;
-use sqlx::{PgPool, Row};
-use uuid::Uuid;
 use anyhow::Result;
+use sqlx::{PgPool, Row};
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum DatabaseError {
     #[error("Database query failed: {0}")]
     QueryFailed(#[from] sqlx::Error),
@@ -20,8 +23,10 @@ pub enum DatabaseError {
     CharacterNameExists,
 }
 
+#[allow(dead_code)]
 pub struct AccountQueries;
 
+#[allow(dead_code)]
 impl AccountQueries {
     /// Create a new account
     pub async fn create_account(
@@ -60,13 +65,14 @@ impl AccountQueries {
     }
 
     /// Find account by username
-    pub async fn find_by_username(pool: &PgPool, username: &str) -> Result<Option<Account>, DatabaseError> {
-        let row = sqlx::query(
-            "SELECT * FROM accounts WHERE username = $1 AND is_active = true"
-        )
-        .bind(username)
-        .fetch_optional(pool)
-        .await?;
+    pub async fn find_by_username(
+        pool: &PgPool,
+        username: &str,
+    ) -> Result<Option<Account>, DatabaseError> {
+        let row = sqlx::query("SELECT * FROM accounts WHERE username = $1 AND is_active = true")
+            .bind(username)
+            .fetch_optional(pool)
+            .await?;
 
         if let Some(row) = row {
             Ok(Some(Account {
@@ -88,13 +94,14 @@ impl AccountQueries {
     }
 
     /// Find account by ID
-    pub async fn find_by_id(pool: &PgPool, account_id: Uuid) -> Result<Option<Account>, DatabaseError> {
-        let row = sqlx::query(
-            "SELECT * FROM accounts WHERE id = $1 AND is_active = true"
-        )
-        .bind(account_id)
-        .fetch_optional(pool)
-        .await?;
+    pub async fn find_by_id(
+        pool: &PgPool,
+        account_id: Uuid,
+    ) -> Result<Option<Account>, DatabaseError> {
+        let row = sqlx::query("SELECT * FROM accounts WHERE id = $1 AND is_active = true")
+            .bind(account_id)
+            .fetch_optional(pool)
+            .await?;
 
         if let Some(row) = row {
             Ok(Some(Account {
@@ -126,10 +133,13 @@ impl AccountQueries {
     }
 }
 
+#[allow(dead_code)]
 pub struct CharacterQueries;
 
+#[allow(dead_code)]
 impl CharacterQueries {
     /// Create a new character
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_character(
         pool: &PgPool,
         account_id: Uuid,
@@ -187,13 +197,15 @@ impl CharacterQueries {
     }
 
     /// Get characters for an account
-    pub async fn get_by_account_id(pool: &PgPool, account_id: Uuid) -> Result<Vec<Character>, DatabaseError> {
-        let rows = sqlx::query(
-            "SELECT * FROM characters WHERE account_id = $1 ORDER BY created_at"
-        )
-        .bind(account_id)
-        .fetch_all(pool)
-        .await?;
+    pub async fn get_by_account_id(
+        pool: &PgPool,
+        account_id: Uuid,
+    ) -> Result<Vec<Character>, DatabaseError> {
+        let rows =
+            sqlx::query("SELECT * FROM characters WHERE account_id = $1 ORDER BY created_at")
+                .bind(account_id)
+                .fetch_all(pool)
+                .await?;
 
         let mut characters = Vec::new();
         for row in rows {
@@ -225,7 +237,10 @@ impl CharacterQueries {
     }
 
     /// Find character by ID
-    pub async fn find_by_id(pool: &PgPool, character_id: Uuid) -> Result<Option<Character>, DatabaseError> {
+    pub async fn find_by_id(
+        pool: &PgPool,
+        character_id: Uuid,
+    ) -> Result<Option<Character>, DatabaseError> {
         let row = sqlx::query("SELECT * FROM characters WHERE id = $1")
             .bind(character_id)
             .fetch_optional(pool)
