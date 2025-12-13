@@ -1,4 +1,5 @@
 mod db;
+mod accounts;
 mod entities;
 mod network;
 mod simulation;
@@ -20,6 +21,7 @@ struct AppState {
     db_pool: sqlx::PgPool,
     session_store: network::SessionStore,
     world_state: std::sync::Arc<tokio::sync::RwLock<world::WorldState>>,
+    account_service: accounts::AccountService,
 }
 
 #[tokio::main]
@@ -67,10 +69,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Create application state
     let session_store = network::SessionStore::new();
+    let account_service = accounts::AccountService::new(db_pool.clone());
     let state = AppState {
         db_pool,
         session_store,
         world_state: world_state.clone(),
+        account_service,
     };
 
     // Start simulation loop in background
