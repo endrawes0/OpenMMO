@@ -1,7 +1,13 @@
 mod db;
 mod network;
 
-use axum::{extract::{State, WebSocketUpgrade}, http::StatusCode, response::{Json, Response}, routing::get, Router};
+use axum::{
+    extract::{State, WebSocketUpgrade},
+    http::StatusCode,
+    response::{Json, Response},
+    routing::get,
+    Router,
+};
 use serde_json::json;
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -53,7 +59,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Create application state
     let session_store = network::SessionStore::new();
-    let state = AppState { db_pool, session_store };
+    let state = AppState {
+        db_pool,
+        session_store,
+    };
 
     // Build our application with routes
     let app = Router::new()
@@ -105,10 +114,7 @@ async fn database_health_check(
     }
 }
 
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
+async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
