@@ -33,3 +33,4 @@ DROP INDEX IF EXISTS idx_quest_state_quest_id;
 DROP INDEX IF EXISTS idx_quest_state_character_id;
 DROP INDEX IF EXISTS idx_quest_state_character_quest;
 DROP TABLE IF EXISTS quest_state;
+DROP FUNCTION IF EXISTS update_updated_at_column();
