@@ -1,7 +1,7 @@
 -- Create quest state table
 CREATE TABLE quest_state (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    character_id UUID NOT NULL,
+    character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     quest_id VARCHAR(100) NOT NULL,
     quest_name VARCHAR(200) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'inactive',

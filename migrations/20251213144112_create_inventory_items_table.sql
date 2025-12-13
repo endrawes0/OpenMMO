@@ -1,7 +1,7 @@
 -- Create inventory items table
 CREATE TABLE inventory_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    character_id UUID NOT NULL,
+    character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     item_id VARCHAR(100) NOT NULL,
     item_name VARCHAR(100) NOT NULL,
     item_type VARCHAR(50) NOT NULL,
