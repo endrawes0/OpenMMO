@@ -62,8 +62,7 @@ jobs:
         # else
         #   echo "No migrations to rollback"
         # fi
-        done
-        
+
         # Check for dangerous operations in migrations
         if grep -r "DROP TABLE" *.sql 2>/dev/null; then
           echo "Warning: DROP TABLE found in migrations"
