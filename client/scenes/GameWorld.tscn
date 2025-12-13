@@ -1,0 +1,38 @@
+[gd_scene load_steps=2 format=3 uid="uid://dq8y7n2jxqkr"]
+
+[ext_resource type="Script" path="res://scripts/GameWorld.gd" id="1_abc123"]
+
+[node name="GameWorld" type="Node3D"]
+script = ExtResource("1_abc123")
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 5, 8)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_1abc123")
+
+[node name="Player" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+shape = SubResource("CapsuleShape3D_def456")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Player"]
+mesh = SubResource("CapsuleMesh_ghi789")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1abc123"]
+size = Vector2(100, 100)
+subdivide_width = 20
+subdivide_depth = 20
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_def456"]
+height = 2.0
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_ghi789"]
+height = 2.0

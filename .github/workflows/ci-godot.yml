@@ -1,0 +1,73 @@
+name: CI - Godot Client
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  godot-client:
+    name: Godot Client CI
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.3
+        include-templates: true
+
+    - name: Validate project.godot syntax
+      run: |
+        cd client
+        godot --headless --check-only project.godot
+
+    - name: Check scene structure
+      run: |
+        cd client
+        echo "Checking required scenes exist..."
+        [ -f "scenes/Main.tscn" ] || { echo "Main.tscn not found"; exit 1; }
+        [ -f "scenes/GameWorld.tscn" ] || { echo "GameWorld.tscn not found"; exit 1; }
+        echo "All required scenes found"
+
+    - name: Validate GDScript syntax
+      run: |
+        cd client
+        echo "Checking GDScript files for syntax errors..."
+        find scripts/ -name "*.gd" -exec godot --headless --script {} \; 2>&1 | grep -q "SyntaxError" && { echo "GDScript syntax error found"; exit 1; } || echo "GDScript syntax OK"
+
+    - name: Check export presets
+      run: |
+        cd client
+        if [ -f "export_presets.cfg" ]; then
+          echo "Export presets file found"
+          godot --headless --check-export-preset export_presets.cfg
+        else
+          echo "No export presets file found (optional for MVP)"
+        fi
+
+    - name: Validate project structure
+      run: |
+        cd client
+        echo "Checking project structure..."
+        [ -d "assets/" ] || { echo "assets directory not found"; exit 1; }
+        [ -d "scenes/" ] || { echo "scenes directory not found"; exit 1; }
+        [ -d "scripts/" ] || { echo "scripts directory not found"; exit 1; }
+        [ -f "project.godot" ] || { echo "project.godot not found"; exit 1; }
+        echo "Project structure validation passed"
+
+    - name: Check for proper file organization
+      run: |
+        cd client
+        echo "Checking file organization..."
+        # Ensure no business logic in Godot scripts (basic check)
+        if grep -r "database\|sql\|http" scripts/ 2>/dev/null; then
+          echo "Warning: Potential business logic found in GDScript files"
+          echo "According to AGENTS.md, business logic should be outside Godot scripts"
+        fi
+        echo "File organization check complete"

@@ -1,0 +1,90 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-rust-dependencies:
+    name: Update Rust Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Update dependencies
+      run: |
+        cargo update
+        cargo check
+
+    - name: Check for security advisories
+      run: |
+        cargo install cargo-audit
+        cargo audit
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update Rust dependencies'
+        title: 'chore: update Rust dependencies'
+        body: |
+          ## Summary
+          Automated update of Rust dependencies to latest compatible versions.
+          
+          ## Validation Steps
+          1. Review the dependency changes
+          2. Run `cargo test` to ensure compatibility
+          3. Check for any breaking changes in updated crates
+          
+          ## Type of Change
+          - [ ] Bug fix
+          - [ ] New feature
+          - [ ] Breaking change
+          - [x] Dependency update
+          
+          ## Testing
+          - [ ] Unit tests pass
+          - [ ] Code compiles without warnings
+          - [ ] No security vulnerabilities detected
+          
+        branch: feature/update-dependencies
+        delete-branch: true
+        labels: |
+          dependencies
+          automated
+
+  check-godot-updates:
+    name: Check Godot Updates
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check Godot version
+      run: |
+        echo "Current Godot version in workflows: 4.3"
+        echo "Latest stable Godot version:"
+        curl -s https://api.github.com/repos/godotengine/godot/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
+
+    - name: Create issue if update available
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Godot Engine Update Available',
+            body: 'A new version of Godot Engine is available. Consider updating the CI workflows and project configuration.',
+            labels: ['enhancement', 'dependencies']
+          })
