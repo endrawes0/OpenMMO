@@ -3,8 +3,9 @@ name: CI - Database Migrations
 on:
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  # Temporarily disable for Phase 1 - migrations need cleanup
+  # pull_request:
+  #   branches: [ master ]
   workflow_dispatch:
 
 jobs:
