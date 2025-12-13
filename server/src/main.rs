@@ -1,5 +1,8 @@
 mod db;
+mod entities;
 mod network;
+mod simulation;
+mod world;
 
 use axum::{
     extract::{State, WebSocketUpgrade},
@@ -9,13 +12,14 @@ use axum::{
     Router,
 };
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone)]
 struct AppState {
     db_pool: sqlx::PgPool,
     session_store: network::SessionStore,
+    world_state: std::sync::Arc<tokio::sync::RwLock<world::WorldState>>,
 }
 
 #[tokio::main]
@@ -57,12 +61,24 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Database connectivity verified");
 
+    // Create world state
+    let world_state = std::sync::Arc::new(tokio::sync::RwLock::new(world::WorldState::new()));
+    info!("World state initialized with {} zones", world_state.read().await.zone_count());
+
     // Create application state
     let session_store = network::SessionStore::new();
     let state = AppState {
         db_pool,
         session_store,
+        world_state: world_state.clone(),
     };
+
+    // Start simulation loop in background
+    let simulation_world_state = world_state.clone();
+    tokio::spawn(async move {
+        let mut simulation_loop = simulation::SimulationLoop::new(simulation_world_state);
+        simulation_loop.run().await;
+    });
 
     // Build our application with routes
     let app = Router::new()

@@ -9,17 +9,20 @@ package openmmo;
 message Envelope {
   uint32 sequence_id = 1;
   uint64 timestamp = 2;
-  oneof payload {
-    HandshakeRequest handshake_request = 3;
-    HandshakeResponse handshake_response = 4;
-    AuthRequest auth_request = 5;
-    AuthResponse auth_response = 6;
-    Ping ping = 7;
-    Pong pong = 8;
-    Error error = 9;
-    Disconnect disconnect = 10;
-    WorldSnapshot world_snapshot = 11;
-  }
+   oneof payload {
+     HandshakeRequest handshake_request = 3;
+     HandshakeResponse handshake_response = 4;
+     AuthRequest auth_request = 5;
+     AuthResponse auth_response = 6;
+     Ping ping = 7;
+     Pong pong = 8;
+     Error error = 9;
+     Disconnect disconnect = 10;
+     WorldSnapshot world_snapshot = 11;
+     MovementIntent movement_intent = 12;
+     CombatAction combat_action = 13;
+     EntityUpdate entity_update = 14;
+   }
 }
 
 // Handshake messages
@@ -127,4 +130,31 @@ message EntityState {
   MovementState movement_state = 1;
   float health_percent = 2; // 0.0 to 1.0
   string display_name = 3;
+}
+
+// Movement intent from client
+message MovementIntent {
+  Vector3 target_position = 1;
+  float speed_modifier = 2; // 1.0 = normal speed
+  bool stop_movement = 3; // If true, stop all movement
+}
+
+// Combat action from client
+message CombatAction {
+  enum ActionType {
+    AUTO_ATTACK = 0;
+    ABILITY = 1;
+  }
+  ActionType action_type = 1;
+  uint64 target_entity_id = 2;
+  uint32 ability_id = 3; // Only used for ABILITY type
+}
+
+// Entity update from server (for real-time sync)
+message EntityUpdate {
+  uint64 entity_id = 1;
+  Vector3 position = 2;
+  Vector3 rotation = 3;
+  EntityState state = 4;
+  repeated EntityUpdate effects = 5; // Status effects, damage numbers, etc.
 }

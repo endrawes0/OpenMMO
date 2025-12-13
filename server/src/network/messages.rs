@@ -23,6 +23,9 @@ pub enum Payload {
     Error(Error),
     Disconnect(Disconnect),
     WorldSnapshot(WorldSnapshot),
+    MovementIntent(MovementIntent),
+    CombatAction(CombatAction),
+    EntityUpdate(EntityUpdate),
 }
 
 /// Handshake messages
@@ -148,4 +151,45 @@ pub enum MovementState {
     Walking = 1,
     Running = 2,
     Dead = 3,
+}
+
+/// Movement intent from client
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MovementIntent {
+    pub target_position: Vector3,
+    pub speed_modifier: f32,
+    pub stop_movement: bool,
+}
+
+/// Combat action from client
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CombatAction {
+    pub action_type: ActionType,
+    pub target_entity_id: u64,
+    pub ability_id: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ActionType {
+    AutoAttack = 0,
+    Ability = 1,
+}
+
+/// Entity update from server (for real-time sync)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityUpdate {
+    pub entity_id: u64,
+    pub position: Option<Vector3>,
+    pub rotation: Option<Vector3>,
+    pub state: Option<EntityState>,
+    pub effects: Vec<EntityEffect>,
+}
+
+/// Visual effects for entity updates
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EntityEffect {
+    DamageNumber { amount: u32, is_critical: bool },
+    StatusEffect { effect_type: String, duration: f32 },
+    Death,
+    Respawn,
 }
