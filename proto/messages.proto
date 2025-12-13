@@ -1,0 +1,130 @@
+// OpenMMO Protocol Definition
+// Core message types for client-server communication
+
+syntax = "proto3";
+
+package openmmo;
+
+// Message envelope for all communications
+message Envelope {
+  uint32 sequence_id = 1;
+  uint64 timestamp = 2;
+  oneof payload {
+    HandshakeRequest handshake_request = 3;
+    HandshakeResponse handshake_response = 4;
+    AuthRequest auth_request = 5;
+    AuthResponse auth_response = 6;
+    Ping ping = 7;
+    Pong pong = 8;
+    Error error = 9;
+    Disconnect disconnect = 10;
+    WorldSnapshot world_snapshot = 11;
+  }
+}
+
+// Handshake messages
+message HandshakeRequest {
+  string client_version = 1;
+  string protocol_version = 2;
+  uint32 supported_features = 3; // Bitfield of supported features
+}
+
+message HandshakeResponse {
+  bool accepted = 1;
+  string server_version = 2;
+  string protocol_version = 3;
+  uint32 server_features = 4; // Bitfield of server features
+  string message = 5; // Optional message (error or info)
+}
+
+// Authentication messages
+message AuthRequest {
+  string username = 1;
+  string password_hash = 2; // Client-side hashed password
+  string character_name = 3; // Optional: specific character to login as
+}
+
+message AuthResponse {
+  bool success = 1;
+  string session_token = 2; // Only present on success
+  string message = 3; // Error message or success info
+  uint64 player_id = 4; // Player entity ID
+  uint64 character_id = 5; // Character entity ID
+}
+
+// Ping/Pong for connection health
+message Ping {
+  uint64 timestamp = 1;
+}
+
+message Pong {
+  uint64 timestamp = 1; // Echo back the ping timestamp
+}
+
+// Error messages
+message Error {
+  enum ErrorCode {
+    UNKNOWN_ERROR = 0;
+    INVALID_REQUEST = 1;
+    AUTHENTICATION_FAILED = 2;
+    SESSION_EXPIRED = 3;
+    CHARACTER_NOT_FOUND = 4;
+    SERVER_FULL = 5;
+    PROTOCOL_MISMATCH = 6;
+    RATE_LIMITED = 7;
+  }
+  ErrorCode code = 1;
+  string message = 2;
+  map<string, string> details = 3; // Additional error context
+}
+
+// Disconnect notification
+message Disconnect {
+  enum DisconnectReason {
+    UNKNOWN = 0;
+    CLIENT_REQUEST = 1;
+    SERVER_SHUTDOWN = 2;
+    TIMEOUT = 3;
+    KICKED = 4;
+    BANNED = 5;
+  }
+  DisconnectReason reason = 1;
+  string message = 2;
+}
+
+// Basic world snapshot for initial state sync
+message WorldSnapshot {
+  uint64 snapshot_id = 1;
+  repeated Entity entities = 2;
+  uint64 player_entity_id = 3; // Which entity is the player
+  string zone_name = 4;
+}
+
+// Basic entity representation
+message Entity {
+  uint64 id = 1;
+  string entity_type = 2; // "player", "mob", "npc", etc.
+  Vector3 position = 3;
+  Vector3 rotation = 4;
+  EntityState state = 5;
+}
+
+// 3D vector for positions/rotations
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// Entity state information
+message EntityState {
+  enum MovementState {
+    IDLE = 0;
+    WALKING = 1;
+    RUNNING = 2;
+    DEAD = 3;
+  }
+  MovementState movement_state = 1;
+  float health_percent = 2; // 0.0 to 1.0
+  string display_name = 3;
+}
