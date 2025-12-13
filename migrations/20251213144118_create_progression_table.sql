@@ -1,7 +1,7 @@
 -- Create progression table
 CREATE TABLE progression (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    character_id UUID NOT NULL,
     progression_type VARCHAR(50) NOT NULL,
     current_value BIGINT NOT NULL DEFAULT 0,
     max_value BIGINT NOT NULL,

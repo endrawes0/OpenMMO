@@ -3,9 +3,8 @@ name: CI - Godot Client
 on:
   push:
     branches: [ master ]
-  # Temporarily disable for Phase 0
-  # pull_request:
-  #   branches: [ master ]
+  pull_request:
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -20,7 +19,7 @@ jobs:
     - name: Setup Godot
       uses: chickensoft-games/setup-godot@v1
       with:
-        version: 4.3
+        version: 4.3-stable
         include-templates: true
 
     - name: Validate project.godot syntax
