@@ -6,7 +6,7 @@ extends Control
 @onready var connect_button = $VBoxContainer/ConnectButton
 @onready var server_address = $VBoxContainer/ServerAddress
 @onready var username = $VBoxContainer/Username
-@onready var password = $VBoxContainer/Password
+@onready var user_password = $VBoxContainer/Password
 @onready var exit_button = $VBoxContainer/ExitButton
 @onready var network_debug = $NetworkDebug
 
@@ -19,7 +19,7 @@ func _on_connect_button_pressed():
 	# UI binding only - actual connection logic will be handled by engine-agnostic modules
 	var address = server_address.text
 	var user = username.text
-	var passw = password.text
+	var user_password = user_password.text
 	
 	if address.is_empty() or user.is_empty() or passw.is_empty():
 		print("Please fill in all connection fields")

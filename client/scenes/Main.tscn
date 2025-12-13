@@ -46,7 +46,7 @@ placeholder_text = "Username"
 [node name="Password" type="LineEdit" parent="VBoxContainer"]
 layout_mode = 2
 placeholder_text = "Password"
-secret = true
+is_is_secret = true
 
 [node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
 layout_mode = 2
