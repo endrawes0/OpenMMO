@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: openmmo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openmmo
+      POSTGRES_USER: openmmo_user
+      POSTGRES_PASSWORD: openmmo_dev_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openmmo_user -d openmmo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - openmmo-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  openmmo-network:
+    driver: bridge

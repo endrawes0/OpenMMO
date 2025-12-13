@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build server release
+      run: |
+        cd server
+        cargo build --release
+
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.3
+        include-templates: true
+
+    - name: Export client (if export presets exist)
+      run: |
+        cd client
+        if [ -f "export_presets.cfg" ]; then
+          mkdir -p ../release/client
+          godot --headless --export "Linux/X11" ../release/client/OpenMMO.x86_64
+          godot --headless --export "Windows Desktop" ../release/client/OpenMMO.exe
+          godot --headless --export "macOS" ../release/client/OpenMMO.zip
+        else
+          echo "No export presets found, skipping client export"
+        fi
+
+    - name: Create release archive
+      run: |
+        mkdir -p release/server
+        cp server/target/release/server release/server/
+        cp -r migrations release/
+        cp README.md release/
+        cp LICENSE release/
+        cp -r docs release/ || true
+        
+        # Create tarball
+        cd release
+        tar -czf openmmo-${{ github.ref_name }}.tar.gz *
+        
+        # Create checksum
+        sha256sum openmmo-${{ github.ref_name }}.tar.gz > openmmo-${{ github.ref_name }}.tar.gz.sha256
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: OpenMMO ${{ github.ref_name }}
+        body: |
+          ## Release ${{ github.ref_name }}
+          
+          ### Installation
+          1. Download the release archive
+          2. Extract: `tar -xzf openmmo-${{ github.ref_name }}.tar.gz`
+          3. Follow the setup instructions in README.md
+          
+          ### What's Included
+          - Server binary (server/server)
+          - Database migrations (migrations/)
+          - Documentation (docs/)
+          - Client export files (if available)
+          
+          ### Verification
+          Verify the download with: `sha256sum -c openmmo-${{ github.ref_name }}.tar.gz.sha256`
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/openmmo-${{ github.ref_name }}.tar.gz
+        asset_name: openmmo-${{ github.ref_name }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Checksum
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/openmmo-${{ github.ref_name }}.tar.gz.sha256
+        asset_name: openmmo-${{ github.ref_name }}.tar.gz.sha256
+        asset_content_type: text/plain
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=tag
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

@@ -1,0 +1,25 @@
+# Godot version-specific files
+*.import
+*.ctex
+*.tmp
+*.temp
+
+# Build outputs
+builds/
+*.exe
+*.x86_64
+*.app
+
+# Editor-specific
+.godot/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
