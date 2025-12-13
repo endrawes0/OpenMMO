@@ -1,7 +1,7 @@
 -- Create characters table
 CREATE TABLE characters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    account_id UUID NOT NULL,
     name VARCHAR(50) UNIQUE NOT NULL,
     class VARCHAR(30) NOT NULL,
     level INTEGER NOT NULL DEFAULT 1,

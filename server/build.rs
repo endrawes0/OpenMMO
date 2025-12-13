@@ -3,7 +3,7 @@ use std::process::Command;
 
 fn main() -> Result<()> {
     // Check if protoc is available
-    if let Ok(_) = Command::new("protoc").arg("--version").output() {
+    if Command::new("protoc").arg("--version").output().is_ok() {
         // Generate Rust code from Protobuf definitions
         prost_build::compile_protos(&["../proto/messages.proto"], &["../proto/"])?;
         println!("cargo:rerun-if-changed=../proto/messages.proto");
