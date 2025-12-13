@@ -20,6 +20,8 @@ tokio-tungstenite = "0.21"
 futures-util = "0.3"
 tower = "0.4"
 tower-http = "0.5"
+argon2 = "0.5"
+regex = "1.10"
 
 [build-dependencies]
 prost-build = "0.13"

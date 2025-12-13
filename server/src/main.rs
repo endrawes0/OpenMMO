@@ -1,4 +1,5 @@
 mod db;
+mod accounts;
 mod network;
 
 use axum::{
@@ -16,6 +17,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 struct AppState {
     db_pool: sqlx::PgPool,
     session_store: network::SessionStore,
+    account_service: accounts::AccountService,
 }
 
 #[tokio::main]
@@ -59,9 +61,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Create application state
     let session_store = network::SessionStore::new();
+    let account_service = accounts::AccountService::new(db_pool.clone());
     let state = AppState {
         db_pool,
         session_store,
+        account_service,
     };
 
     // Build our application with routes
