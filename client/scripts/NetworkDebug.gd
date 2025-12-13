@@ -22,9 +22,6 @@ func _process(_delta):
 func set_status(status: String):
 	status_label.text = "Status: " + status
 
-func get_status() -> String:
-	return status_label.text.trim_prefix("Status: ")
-
 func set_ping(ping_ms: int):
 	last_ping = ping_ms
 	ping_label.text = "Ping: " + str(ping_ms) + "ms"

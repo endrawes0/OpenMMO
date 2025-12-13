@@ -1,7 +1,6 @@
 mod db;
-mod network;
 
-use axum::{extract::{State, WebSocketUpgrade}, http::StatusCode, response::{Json, Response}, routing::get, Router};
+use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use serde_json::json;
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -9,7 +8,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[derive(Clone)]
 struct AppState {
     db_pool: sqlx::PgPool,
-    session_store: network::SessionStore,
 }
 
 #[tokio::main]
@@ -52,14 +50,12 @@ async fn main() -> anyhow::Result<()> {
     info!("Database connectivity verified");
 
     // Create application state
-    let session_store = network::SessionStore::new();
-    let state = AppState { db_pool, session_store };
+    let state = AppState { db_pool };
 
     // Build our application with routes
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/health/db", get(database_health_check))
-        .route("/ws", get(ws_handler))
         .with_state(state);
 
     // Run the server
@@ -103,99 +99,4 @@ async fn database_health_check(
             Err(StatusCode::SERVICE_UNAVAILABLE)
         }
     }
-}
-
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
-}
-
-async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState) {
-    use axum::extract::ws::Message;
-    use futures_util::StreamExt;
-    use network::messages::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    info!("New WebSocket connection established");
-
-    // Create a session for this connection
-    let session_id = state.session_store.create_session().await;
-    info!("Created session: {}", session_id);
-
-    // Send handshake response
-    let handshake_response = Envelope {
-        sequence_id: 1,
-        timestamp: SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64,
-        payload: Payload::HandshakeResponse(HandshakeResponse {
-            accepted: true,
-            server_version: "0.1.0".to_string(),
-            protocol_version: "1.0".to_string(),
-            server_features: 0,
-            message: "Welcome to OpenMMO!".to_string(),
-        }),
-    };
-
-    if let Ok(json) = serde_json::to_string(&handshake_response) {
-        if socket.send(Message::Text(json)).await.is_err() {
-            info!("Failed to send handshake response");
-            return;
-        }
-    }
-
-    // Handle incoming messages
-    while let Some(Ok(msg)) = socket.next().await {
-        match msg {
-            Message::Text(text) => {
-                info!("Received message: {}", text);
-
-                // Try to parse as Envelope
-                if let Ok(envelope) = serde_json::from_str::<Envelope>(&text) {
-                    match &envelope.payload {
-                        Payload::Ping(ping) => {
-                            // Respond with pong
-                            let pong_response = Envelope {
-                                sequence_id: envelope.sequence_id,
-                                timestamp: SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_millis() as u64,
-                                payload: Payload::Pong(Pong {
-                                    timestamp: ping.timestamp,
-                                }),
-                            };
-
-                            if let Ok(json) = serde_json::to_string(&pong_response) {
-                                if socket.send(Message::Text(json)).await.is_err() {
-                                    break;
-                                }
-                            }
-                        }
-                        Payload::HandshakeRequest(_) => {
-                            // Already handled handshake
-                        }
-                        _ => {
-                            info!("Received unhandled message type");
-                        }
-                    }
-                } else {
-                    error!("Failed to parse message: {}", text);
-                }
-            }
-            Message::Close(_) => {
-                info!("WebSocket connection closed for session: {}", session_id);
-                state.session_store.remove_session(&session_id).await;
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    // Clean up session on disconnect
-    state.session_store.remove_session(&session_id).await;
-    info!("Session cleaned up: {}", session_id);
 }
