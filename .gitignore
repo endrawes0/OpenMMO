@@ -1,0 +1,65 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Godot
+*.import
+*.tmp
+*.temp
+*.bak
+*.backup
+export_presets.cfg
+
+# Godot specific
+.godot/
+android/
+ios/
+html5/
+uwp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# SQLx
+.sqlx/
+
+# Docker
+docker-compose.override.yml
+
+# Node (if any tools need it)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+build/
+dist/
+target/
+
+# Temporary files
+tmp/
+temp/
