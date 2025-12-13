@@ -1,6 +1,10 @@
 mod db;
 mod accounts;
 mod entities;
+mod equipment;
+mod inventory;
+mod items;
+mod loot;
 mod network;
 mod simulation;
 mod world;

@@ -34,6 +34,14 @@ pub enum Payload {
     CharacterSelectResponse(CharacterSelectResponse),
     CharacterDeleteRequest(CharacterDeleteRequest),
     CharacterDeleteResponse(CharacterDeleteResponse),
+    InventoryRequest(InventoryRequest),
+    InventoryResponse(InventoryResponse),
+    ItemMoveRequest(ItemMoveRequest),
+    ItemMoveResponse(ItemMoveResponse),
+    EquipmentRequest(EquipmentRequest),
+    EquipmentResponse(EquipmentResponse),
+    ItemEquipRequest(ItemEquipRequest),
+    ItemEquipResponse(ItemEquipResponse),
 }
 
 /// Handshake messages
@@ -269,6 +277,88 @@ pub struct CharacterDeleteRequest {
 /// Delete character response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterDeleteResponse {
+    pub success: bool,
+    pub error_message: Option<String>,
+}
+
+/// Inventory management messages
+
+/// Request inventory contents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InventoryRequest;
+
+/// Response with inventory contents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InventoryResponse {
+    pub slots: Vec<InventorySlot>,
+    pub max_slots: u32,
+}
+
+/// Inventory slot information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InventorySlot {
+    pub slot_id: u32,
+    pub item: ItemInstance,
+}
+
+/// Item instance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemInstance {
+    pub definition_id: u32,
+    pub quantity: u32,
+    pub is_bound: bool,
+    pub durability: Option<ItemDurability>,
+}
+
+/// Item durability
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemDurability {
+    pub current: u32,
+    pub maximum: u32,
+}
+
+/// Move item between inventory slots
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemMoveRequest {
+    pub from_slot: u32,
+    pub to_slot: u32,
+}
+
+/// Move item response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemMoveResponse {
+    pub success: bool,
+    pub error_message: Option<String>,
+}
+
+/// Request equipment contents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EquipmentRequest;
+
+/// Response with equipment contents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EquipmentResponse {
+    pub slots: Vec<EquipmentSlot>,
+}
+
+/// Equipment slot information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EquipmentSlot {
+    pub slot_type: u32,  // EquipmentSlot enum value
+    pub item: ItemInstance,
+}
+
+/// Equip/unequip item request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemEquipRequest {
+    pub inventory_slot: u32,
+    pub equipment_slot: u32,
+    pub unequip: bool,
+}
+
+/// Equip/unequip item response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemEquipResponse {
     pub success: bool,
     pub error_message: Option<String>,
 }
