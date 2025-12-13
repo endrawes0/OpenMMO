@@ -10,9 +10,9 @@ fn main() -> Result<()> {
         &format!("{}/bin/protoc", std::env::var("HOME").unwrap_or_default()),
     ];
 
-    let protoc_path = protoc_paths.iter().find(|path| {
-        Command::new(path).arg("--version").output().is_ok()
-    });
+    let protoc_path = protoc_paths
+        .iter()
+        .find(|path| Command::new(path).arg("--version").output().is_ok());
 
     if let Some(protoc) = protoc_path {
         // Generate Rust code from Protobuf definitions
