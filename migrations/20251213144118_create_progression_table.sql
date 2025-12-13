@@ -18,6 +18,14 @@ CREATE INDEX idx_progression_type ON progression(progression_type);
 CREATE INDEX idx_progression_level ON progression(level);
 
 -- Add updated_at trigger
-CREATE TRIGGER update_progression_updated_at 
-    BEFORE UPDATE ON progression 
+CREATE TRIGGER update_progression_updated_at
+    BEFORE UPDATE ON progression
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- migrate:down
+DROP TRIGGER IF EXISTS update_progression_updated_at ON progression;
+DROP INDEX IF EXISTS idx_progression_level;
+DROP INDEX IF EXISTS idx_progression_type;
+DROP INDEX IF EXISTS idx_progression_character_id;
+DROP INDEX IF EXISTS idx_progression_character_type;
+DROP TABLE IF EXISTS progression;

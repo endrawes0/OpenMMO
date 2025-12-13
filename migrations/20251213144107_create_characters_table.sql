@@ -32,6 +32,17 @@ CREATE INDEX idx_characters_is_online ON characters(is_online);
 CREATE INDEX idx_characters_updated_at ON characters(updated_at);
 
 -- Add updated_at trigger
-CREATE TRIGGER update_characters_updated_at 
-    BEFORE UPDATE ON characters 
+CREATE TRIGGER update_characters_updated_at
+    BEFORE UPDATE ON characters
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- migrate:down
+DROP TRIGGER IF EXISTS update_characters_updated_at ON characters;
+DROP INDEX IF EXISTS idx_characters_updated_at;
+DROP INDEX IF EXISTS idx_characters_is_online;
+DROP INDEX IF EXISTS idx_characters_zone_id;
+DROP INDEX IF EXISTS idx_characters_level;
+DROP INDEX IF EXISTS idx_characters_class;
+DROP INDEX IF EXISTS idx_characters_name;
+DROP INDEX IF EXISTS idx_characters_account_id;
+DROP TABLE IF EXISTS characters;

@@ -21,6 +21,15 @@ CREATE INDEX idx_quest_state_status ON quest_state(status);
 CREATE INDEX idx_quest_state_completed_at ON quest_state(completed_at);
 
 -- Add updated_at trigger
-CREATE TRIGGER update_quest_state_updated_at 
-    BEFORE UPDATE ON quest_state 
+CREATE TRIGGER update_quest_state_updated_at
+    BEFORE UPDATE ON quest_state
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- migrate:down
+DROP TRIGGER IF EXISTS update_quest_state_updated_at ON quest_state;
+DROP INDEX IF EXISTS idx_quest_state_completed_at;
+DROP INDEX IF EXISTS idx_quest_state_status;
+DROP INDEX IF EXISTS idx_quest_state_quest_id;
+DROP INDEX IF EXISTS idx_quest_state_character_id;
+DROP INDEX IF EXISTS idx_quest_state_character_quest;
+DROP TABLE IF EXISTS quest_state;

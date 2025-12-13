@@ -39,7 +39,16 @@ jobs:
       run: |
         cd client
         echo "Checking GDScript files for syntax errors..."
-        find scripts/ -name "*.gd" -exec godot --headless --script {} \; 2>&1 | grep -q "SyntaxError" && { echo "GDScript syntax error found"; exit 1; } || echo "GDScript syntax OK"
+        for script in scripts/*.gd; do
+          echo "Checking $script..."
+          if ! godot --headless --script "$script" 2>&1 | grep -q "SCRIPT ERROR"; then
+            echo "$script syntax OK"
+          else
+            echo "Syntax error in $script"
+            exit 1
+          fi
+        done
+        echo "All GDScript files syntax OK"
 
     - name: Check export presets
       run: |
