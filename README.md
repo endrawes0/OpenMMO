@@ -135,7 +135,7 @@ This project follows a structured development approach:
 1. **Phase 0** - Repository & Infrastructure Setup ✅
 2. **Phase 1** - Networking & Protocol Skeleton ✅
 3. **Phase 2** - Core Server Gameplay Loop ✅
-4. **Phase 3** - Persistence, Accounts, and Characters
+4. **Phase 3** - Persistence, Accounts, and Characters ✅
 5. **Phase 4** - Inventory, Items, Classes, and NPCs
 6. **Phase 5** - Second Zone and Content Pass
 7. **Phase 6** - Admin Tools, Packaging, and Release Prep
