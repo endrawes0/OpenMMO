@@ -96,16 +96,30 @@ OpenMMO/
 This project follows a structured development approach:
 
 1. **Phase 0** - Repository & Infrastructure Setup ✅
-   - Complete Rust workspace with server crate
-   - Godot 4.x client project with export configuration  
-   - PostgreSQL development environment with Docker
-   - Complete database schema for MVP (7 tables)
-   - GitHub Actions CI/CD pipeline with quality gates
-   - Structured logging and error handling
-   - Development documentation and setup scripts
+    - Complete Rust workspace with server crate
+    - Godot 4.x client project with export configuration
+    - PostgreSQL development environment with Docker
+    - Complete database schema for MVP (7 tables)
+    - GitHub Actions CI/CD pipeline with quality gates
+    - Structured logging and error handling
+    - Development documentation and setup scripts
 
-2. **Phase 1** - Networking & Protocol Skeleton
-3. **Phase 2** - Core Server Gameplay Loop
+2. **Phase 1** - Networking & Protocol Skeleton ✅
+    - WebSocket server with Tokio + Axum
+    - Protobuf message definitions for core gameplay
+    - Godot client with network connection and debug overlay
+    - Session management with in-memory store
+    - Message routing and error handling
+
+3. **Phase 2** - Core Server Gameplay Loop ✅
+    - Entity Component System (ECS) with Position, Health, Movement, Combat components
+    - 20 Hz simulation tick loop with async world state management
+    - Movement validation and collision detection framework
+    - Combat system with damage calculation and attack validation
+    - AI system for mobs (idle, aggro, chase, attack, leash)
+    - World management with zones and spatial partitioning
+    - Starter zone with test entities (players, mobs)
+
 4. **Phase 3** - Persistence, Accounts, and Characters
 5. **Phase 4** - Inventory, Items, Classes, and NPCs
 6. **Phase 5** - Second Zone and Content Pass
