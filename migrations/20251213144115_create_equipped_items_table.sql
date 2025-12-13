@@ -1,8 +1,8 @@
 -- Create equipped items table
 CREATE TABLE equipped_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-    inventory_item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+    character_id UUID NOT NULL,
+    inventory_item_id UUID NOT NULL,
     equipment_slot VARCHAR(30) NOT NULL,
     equipped_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()

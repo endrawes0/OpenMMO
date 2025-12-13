@@ -1,7 +1,7 @@
 -- Create character stats table
 CREATE TABLE character_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    character_id UUID NOT NULL,
     stat_name VARCHAR(50) NOT NULL,
     stat_value INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
