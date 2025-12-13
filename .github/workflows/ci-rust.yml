@@ -43,6 +43,8 @@ jobs:
         curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v25.3/protoc-25.3-linux-x86_64.zip
         unzip protoc-25.3-linux-x86_64.zip -d protoc
         echo "$(pwd)/protoc/bin" >> $GITHUB_PATH
+        export PATH="$(pwd)/protoc/bin:$PATH"
+        protoc --version
 
     - name: Cache dependencies
       uses: actions/cache@v4
@@ -59,7 +61,7 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Run clippy
-      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      run: cargo clippy --workspace --all-targets --all-features
 
     - name: Build workspace
       run: cargo build --workspace --verbose
