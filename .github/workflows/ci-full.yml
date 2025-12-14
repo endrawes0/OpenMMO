@@ -54,6 +54,13 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+    - name: Prepare SQLx queries
+      run: |
+        cargo install sqlx-cli --no-default-features --features native-tls,postgres
+        cargo sqlx prepare --workspace
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
+
     - name: Check formatting
       run: cargo fmt --all -- --check
 
