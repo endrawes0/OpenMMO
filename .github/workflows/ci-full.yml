@@ -91,7 +91,7 @@ jobs:
     - name: Setup Godot
       uses: chickensoft-games/setup-godot@v1
       with:
-        version: 4.3-stable
+        version: 4.3
 
     - name: Validate project
       run: |
