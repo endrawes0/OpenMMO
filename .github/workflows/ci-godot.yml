@@ -19,7 +19,7 @@ jobs:
     - name: Setup Godot
       uses: chickensoft-games/setup-godot@v1
       with:
-        version: 4.5.1.stable
+        version: '4.5.1-stable'
         include-templates: true
 
     - name: Validate project.godot syntax
