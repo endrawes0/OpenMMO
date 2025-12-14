@@ -14,6 +14,8 @@ help:
 	@echo "  clippy        - Run clippy linter (matches CI)"
 	@echo "  secrets-check - Check for hardcoded secrets (matches CI)"
 	@echo "  structure-check - Validate project structure (matches CI)"
+	@echo "  prepare-sqlx  - Prepare SQLX queries for offline mode"
+	@echo "  check-sqlx    - Check SQLX query preparation (matches CI)"
 	@echo "  audit         - Run security audit"
 	@echo "  build         - Build the workspace"
 	@echo "  test          - Run tests (requires database)"
@@ -88,8 +90,20 @@ test:
 	@cargo test --workspace --lib || { echo "❌ Tests failed (database not configured?)"; exit 1; }
 	@echo "✅ Tests OK"
 
+# Prepare SQLX queries
+prepare-sqlx:
+	@echo "🔧 Preparing SQLX queries..."
+	cargo sqlx prepare --workspace
+	@echo "✅ SQLX queries prepared"
+
+# Check SQLX query preparation
+check-sqlx:
+	@echo "🔍 Checking SQLX query preparation..."
+	@cargo sqlx prepare --check || { echo "❌ SQLX queries not prepared. Run 'make prepare-sqlx'"; exit 1; }
+	@echo "✅ SQLX queries prepared"
+
 # Run all local CI-equivalent checks
-ci-local: fmt-check clippy secrets-check structure-check audit build
+ci-local: fmt-check clippy secrets-check structure-check audit build check-sqlx
 	@echo "🎉 All local CI-equivalent checks passed!"
 	@echo ""
 	@echo "Ready to commit and push. CI should pass with these validations."

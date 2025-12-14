@@ -162,6 +162,11 @@ jobs:
           fi
         done
 
+    - name: Check SQLX query preparation
+      run: |
+        cargo install sqlx-cli --no-default-features --features native-tls,postgres
+        cargo sqlx prepare --check
+
     - name: Validate file organization
       run: |
         echo "Checking project structure..."
