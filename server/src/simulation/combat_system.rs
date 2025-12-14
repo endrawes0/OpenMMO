@@ -3,7 +3,6 @@
 //! This module implements the combat mechanics including
 //! attack validation, damage calculation, and death handling.
 
-
 use crate::entities::{Entity, EntityId};
 use crate::world::WorldState;
 

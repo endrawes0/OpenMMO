@@ -3,7 +3,6 @@
 //! This module implements the 20 Hz game simulation loop that
 //! updates all game systems each tick.
 
-
 use crate::world::WorldState;
 use std::time::Duration;
 use tracing::info;

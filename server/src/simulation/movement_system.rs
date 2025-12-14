@@ -3,7 +3,6 @@
 //! This module handles player movement intents, validates them,
 //! and updates entity positions.
 
-
 use crate::entities::{Entity, EntityId};
 use crate::world::WorldState;
 
