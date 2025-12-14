@@ -153,7 +153,7 @@ jobs:
       run: |
         PATTERNS=("password.*=" "secret.*=" "token.*=" "api_key.*=" "AKIA[0-9A-Z]{16}")
         for pattern in "${PATTERNS[@]}"; do
-          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.example' ':(exclude)rustfmt.toml' ':(exclude)clippy.toml' ':(exclude).github/workflows/' ':(exclude)client/scenes/' ':(exclude)client/scripts/' ':(exclude)scripts/' ':(exclude)*.proto' 2>/dev/null; then
+          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.example' ':(exclude)rustfmt.toml' ':(exclude)clippy.toml' ':(exclude).github/workflows/' ':(exclude)client/scenes/' ':(exclude)client/scripts/' ':(exclude)scripts/' ':(exclude)*.proto' ':(exclude)*.rs' 2>/dev/null; then
             echo "Potential secret found"
             exit 1
           fi
