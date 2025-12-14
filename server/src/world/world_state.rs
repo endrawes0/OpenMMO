@@ -8,6 +8,7 @@ use crate::world::Zone;
 use crate::entities::EntityId;
 use crate::network::MovementIntent;
 use crate::simulation::CombatAction;
+use tracing::warn;
 
 /// Manages the entire game world
 pub struct WorldState {
@@ -30,6 +31,11 @@ impl WorldState {
         let starter_zone = Zone::create_starter_zone();
         let zone_id = starter_zone.id;
         world.zones.insert(zone_id, starter_zone);
+
+        // Create second zone
+        let second_zone = Zone::create_second_zone();
+        let zone_id = second_zone.id;
+        world.zones.insert(zone_id, second_zone);
 
         world
     }
@@ -88,6 +94,64 @@ impl WorldState {
     pub fn update(&mut self, delta_time: f64) {
         for zone in self.zones.values_mut() {
             zone.update(delta_time);
+        }
+
+        // Check for zone transitions
+        self.check_zone_transitions();
+    }
+
+    /// Check for players at zone transition points and move them
+    fn check_zone_transitions(&mut self) {
+        let mut transitions = Vec::new();
+
+        for (&zone_id, zone) in &self.zones {
+            for &player_id in &zone.active_players.clone() { // Clone to avoid borrow issues
+                if let Some(entity) = zone.entities.get_entity(player_id) {
+                    if let Some(position) = &entity.position {
+                        // Check transition from starter zone (1) to second zone (2)
+                        if zone_id == 1 && position.x > 95.0 {
+                            transitions.push((player_id, 2, (-95.0, position.y, position.z)));
+                        }
+                        // Check transition from second zone (2) to starter zone (1)
+                        else if zone_id == 2 && position.x < -145.0 {
+                            transitions.push((player_id, 1, (95.0, position.y, position.z)));
+                        }
+                    }
+                }
+            }
+        }
+
+        for (player_id, new_zone_id, new_position) in transitions {
+            if let Err(e) = self.move_player_to_zone_with_position(player_id, new_zone_id, new_position) {
+                warn!("Failed to move player {} to zone {}: {}", player_id, new_zone_id, e);
+            }
+        }
+    }
+
+    /// Move a player to a different zone with specific position
+    pub fn move_player_to_zone_with_position(&mut self, player_id: EntityId, new_zone_id: u32, position: (f32, f32, f32)) -> Result<(), String> {
+        // Remove from current zone
+        if let Some(current_zone_id) = self.player_zone_map.get(&player_id).cloned() {
+            if let Some(current_zone) = self.zones.get_mut(&current_zone_id) {
+                current_zone.remove_player(player_id);
+                // Move the entity to new position before moving zones
+                if let Some(entity) = current_zone.entities.get_entity_mut(player_id) {
+                    if let Some(pos) = &mut entity.position {
+                        pos.x = position.0;
+                        pos.y = position.1;
+                        pos.z = position.2;
+                    }
+                }
+            }
+        }
+
+        // Add to new zone
+        if let Some(new_zone) = self.zones.get_mut(&new_zone_id) {
+            new_zone.add_player(player_id);
+            self.player_zone_map.insert(player_id, new_zone_id);
+            Ok(())
+        } else {
+            Err(format!("Zone {} does not exist", new_zone_id))
         }
     }
 

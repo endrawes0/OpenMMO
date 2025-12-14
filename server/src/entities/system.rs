@@ -273,9 +273,9 @@ impl EntityManager {
     }
 
     /// Create a test mob entity
-    pub fn create_test_mob(&mut self, name: String, x: f32, z: f32) -> EntityId {
+    pub fn create_test_mob(&mut self, name: String, x: f32, z: f32, level: u32) -> EntityId {
         let id = self.generate_id();
-        let mut mob = Entity::new_mob(id, name, 1);
+        let mut mob = Entity::new_mob(id, name, level);
         mob.position = Some(Position {
             x,
             y: 0.0,
@@ -286,6 +286,25 @@ impl EntityManager {
             ai.home_position = (x, 0.0, z);
         }
         self.add_entity(mob);
+        id
+    }
+
+    /// Create a test vendor NPC
+    pub fn create_test_vendor(&mut self, name: String, x: f32, z: f32) -> EntityId {
+        let id = self.generate_id();
+        let mut npc = Entity::new_npc(id, name);
+        npc.position = Some(Position {
+            x,
+            y: 0.0,
+            z,
+            rotation: 0.0,
+        });
+        // Add some items to inventory for selling
+        if let Some(inventory) = &mut npc.inventory {
+            inventory.items.insert(1, 10); // Item ID 1, quantity 10
+            inventory.items.insert(2, 5);  // Item ID 2, quantity 5
+        }
+        self.add_entity(npc);
         id
     }
 }

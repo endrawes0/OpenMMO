@@ -79,9 +79,36 @@ impl Zone {
         );
 
         // Create some test mobs
-        zone.entities.create_test_mob("Goblin".to_string(), 15.0, 15.0);
-        zone.entities.create_test_mob("Orc".to_string(), -15.0, 15.0);
-        zone.entities.create_test_mob("Wolf".to_string(), 0.0, 25.0);
+        zone.entities.create_test_mob("Goblin".to_string(), 15.0, 15.0, 1);
+        zone.entities.create_test_mob("Orc".to_string(), -15.0, 15.0, 1);
+        zone.entities.create_test_mob("Wolf".to_string(), 0.0, 25.0, 1);
+
+        zone
+    }
+
+    /// Create second zone with higher difficulty content
+    pub fn create_second_zone() -> Self {
+        let mut zone = Self::new(
+            2,
+            "Forest Zone".to_string(),
+            ZoneBounds {
+                min_x: -150.0,
+                max_x: 150.0,
+                min_y: -10.0,
+                max_y: 50.0,
+                min_z: -150.0,
+                max_z: 150.0,
+            },
+        );
+
+        // Create higher level mobs
+        zone.entities.create_test_mob("Elite Goblin".to_string(), 30.0, 30.0, 3);
+        zone.entities.create_test_mob("Troll".to_string(), -30.0, 30.0, 4);
+        zone.entities.create_test_mob("Dire Wolf".to_string(), 0.0, 40.0, 3);
+        zone.entities.create_test_mob("Bandit".to_string(), 50.0, 0.0, 2);
+
+        // Create a vendor NPC
+        zone.entities.create_test_vendor("Forest Merchant".to_string(), 0.0, 0.0);
 
         zone
     }
