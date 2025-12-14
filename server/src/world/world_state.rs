@@ -3,14 +3,18 @@
 //! This module manages the overall game world state, including
 //! all zones and cross-zone operations.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use crate::world::Zone;
 use crate::entities::EntityId;
+use crate::network::MovementIntent;
+use crate::simulation::CombatAction;
 
 /// Manages the entire game world
 pub struct WorldState {
     zones: HashMap<u32, Zone>,
     player_zone_map: HashMap<EntityId, u32>, // Player ID -> Zone ID
+    movement_intents: VecDeque<MovementIntent>, // Queue of movement intents to process
+    combat_actions: VecDeque<(EntityId, CombatAction)>, // Queue of (attacker_id, action) to process
 }
 
 impl WorldState {
@@ -18,6 +22,8 @@ impl WorldState {
         let mut world = Self {
             zones: HashMap::new(),
             player_zone_map: HashMap::new(),
+            movement_intents: VecDeque::new(),
+            combat_actions: VecDeque::new(),
         };
 
         // Create starter zone
@@ -93,5 +99,25 @@ impl WorldState {
     /// Get zone count
     pub fn zone_count(&self) -> usize {
         self.zones.len()
+    }
+
+    /// Queue a movement intent for processing
+    pub fn queue_movement_intent(&mut self, intent: MovementIntent) {
+        self.movement_intents.push_back(intent);
+    }
+
+    /// Get and clear the movement intents queue
+    pub fn drain_movement_intents(&mut self) -> VecDeque<MovementIntent> {
+        std::mem::take(&mut self.movement_intents)
+    }
+
+    /// Queue a combat action for processing
+    pub fn queue_combat_action(&mut self, attacker_id: EntityId, action: CombatAction) {
+        self.combat_actions.push_back((attacker_id, action));
+    }
+
+    /// Get and clear the combat actions queue
+    pub fn drain_combat_actions(&mut self) -> VecDeque<(EntityId, CombatAction)> {
+        std::mem::take(&mut self.combat_actions)
     }
 }

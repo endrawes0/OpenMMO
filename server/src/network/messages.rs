@@ -357,9 +357,7 @@ pub struct ItemEquipRequest {
 }
 
 /// Equip/unequip item response
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemEquipResponse {
-    pub success: bool,
-    pub error_message: Option<String>,
-}
+   pub success: bool,
+   pub error_message: Option<String>,
 }

@@ -75,7 +75,7 @@ pub struct Ai {
 }
 
 /// Faction component for social relationships
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Faction {
     Player,
     Neutral,
@@ -97,7 +97,7 @@ pub struct Inventory {
 }
 
 /// Equipment component for equipped items
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EquipmentSlot {
     Head,
     Chest,
