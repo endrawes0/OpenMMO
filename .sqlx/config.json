@@ -1,0 +1,5 @@
+{
+  "db": {
+    "databaseUrl": "postgres://postgres:postgres@localhost/openmmo"
+  }
+}
