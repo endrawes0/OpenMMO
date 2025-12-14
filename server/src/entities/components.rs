@@ -3,8 +3,8 @@
 //! Components define the data and behavior aspects of entities.
 //! Entities are composed of multiple components.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Unique identifier for entities
 pub type EntityId = u64;
@@ -24,7 +24,7 @@ pub struct Movement {
     pub velocity_x: f32,
     pub velocity_y: f32,
     pub velocity_z: f32,
-    pub speed: f32, // Current movement speed
+    pub speed: f32,     // Current movement speed
     pub max_speed: f32, // Maximum allowed speed
     pub is_moving: bool,
 }
@@ -43,14 +43,14 @@ pub struct Combat {
     pub attack_power: u32,
     pub defense: u32,
     pub attack_range: f32,
-    pub attack_speed: f32, // Attacks per second
+    pub attack_speed: f32,     // Attacks per second
     pub last_attack_time: f64, // Timestamp of last attack
 }
 
 /// Ability component for entity abilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Abilities {
-    pub ability_ids: Vec<u32>, // IDs of available abilities
+    pub ability_ids: Vec<u32>,        // IDs of available abilities
     pub cooldowns: HashMap<u32, f64>, // Ability ID -> cooldown end time
 }
 
@@ -58,11 +58,22 @@ pub struct Abilities {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AiState {
     Idle,
-    Patrolling { waypoints: Vec<(f32, f32, f32)>, current_waypoint: usize },
-    Chasing { target_id: EntityId },
-    Attacking { target_id: EntityId },
-    Fleeing { target_id: EntityId },
-    Returning { home_position: (f32, f32, f32) },
+    Patrolling {
+        waypoints: Vec<(f32, f32, f32)>,
+        current_waypoint: usize,
+    },
+    Chasing {
+        target_id: EntityId,
+    },
+    Attacking {
+        target_id: EntityId,
+    },
+    Fleeing {
+        target_id: EntityId,
+    },
+    Returning {
+        home_position: (f32, f32, f32),
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +158,6 @@ pub struct Appearance {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkSync {
     pub last_sync_time: f64,
-    pub sync_interval: f64, // How often to sync this entity
+    pub sync_interval: f64,        // How often to sync this entity
     pub visible_to: Vec<EntityId>, // Which players can see this entity
 }

@@ -1,16 +1,16 @@
 //! Loot system for managing item drops and rewards
 
-use std::collections::HashMap;
+use crate::entities::EntityId;
+use crate::items::{ItemId, ItemInstance};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::items::{ItemId, ItemInstance, ItemRarity};
-use crate::entities::EntityId;
+use std::collections::HashMap;
 
 /// Loot table entry defining an item drop
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LootEntry {
     pub item_id: ItemId,
-    pub drop_chance: f32,  // 0.0 to 1.0 (percentage)
+    pub drop_chance: f32, // 0.0 to 1.0 (percentage)
     pub min_quantity: u32,
     pub max_quantity: u32,
     pub conditions: Vec<LootCondition>,
@@ -66,13 +66,13 @@ impl LootEntry {
 /// Conditions for loot drops
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LootCondition {
-    MinLevel(u32),              // Player must be at least this level
-    MaxLevel(u32),              // Player must be at most this level
-    Class(String),              // Player must be this class
-    QuestCompleted(u32),        // Player must have completed this quest
-    QuestActive(u32),           // Player must have this quest active
-    ItemOwned(ItemId),          // Player must own this item
-    RareDrop,                   // Special rare drop condition
+    MinLevel(u32),       // Player must be at least this level
+    MaxLevel(u32),       // Player must be at most this level
+    Class(String),       // Player must be this class
+    QuestCompleted(u32), // Player must have completed this quest
+    QuestActive(u32),    // Player must have this quest active
+    ItemOwned(ItemId),   // Player must own this item
+    RareDrop,            // Special rare drop condition
 }
 
 impl LootCondition {
@@ -98,7 +98,7 @@ pub struct LootContext {
     pub active_quests: Vec<u32>,
     pub completed_quests: Vec<u32>,
     pub inventory_items: Vec<ItemId>,
-    pub rare_drop_roll: bool,  // Whether rare drop condition was met
+    pub rare_drop_roll: bool, // Whether rare drop condition was met
 }
 
 impl LootContext {
@@ -137,7 +137,7 @@ pub struct LootTable {
     pub id: u32,
     pub name: String,
     pub entries: Vec<LootEntry>,
-    pub guaranteed_drops: Vec<ItemId>,  // Items that always drop
+    pub guaranteed_drops: Vec<ItemId>, // Items that always drop
     pub gold_min: u32,
     pub gold_max: u32,
 }
@@ -233,7 +233,8 @@ impl LootSystem {
     }
 
     pub fn generate_loot(&self, table_id: u32, context: &LootContext) -> Option<Vec<LootDrop>> {
-        self.tables.get(&table_id)
+        self.tables
+            .get(&table_id)
             .map(|table| table.generate_loot(context))
     }
 
@@ -241,25 +242,25 @@ impl LootSystem {
     pub fn load_defaults(&mut self) {
         // Goblin loot table
         let goblin_table = LootTable::new(1, "Goblin Loot")
-            .add_entry(LootEntry::new(200, 0.3).with_quantity(1, 3))  // Health potions
-            .add_entry(LootEntry::new(1, 0.1))  // Rusty sword
-            .add_entry(LootEntry::new(100, 0.05))  // Cloth shirt
+            .add_entry(LootEntry::new(200, 0.3).with_quantity(1, 3)) // Health potions
+            .add_entry(LootEntry::new(1, 0.1)) // Rusty sword
+            .add_entry(LootEntry::new(100, 0.05)) // Cloth shirt
             .with_gold(5, 15);
 
         self.register_table(goblin_table);
 
         // Orc loot table
         let orc_table = LootTable::new(2, "Orc Loot")
-            .add_entry(LootEntry::new(201, 0.2).with_quantity(1, 2))  // Mana potions
-            .add_entry(LootEntry::new(2, 0.15))  // Iron axe
-            .add_entry(LootEntry::new(100, 0.1))  // Cloth shirt
+            .add_entry(LootEntry::new(201, 0.2).with_quantity(1, 2)) // Mana potions
+            .add_entry(LootEntry::new(2, 0.15)) // Iron axe
+            .add_entry(LootEntry::new(100, 0.1)) // Cloth shirt
             .with_gold(10, 25);
 
         self.register_table(orc_table);
 
         // Wolf loot table
         let wolf_table = LootTable::new(3, "Wolf Loot")
-            .add_entry(LootEntry::new(200, 0.25).with_quantity(1, 2))  // Health potions
+            .add_entry(LootEntry::new(200, 0.25).with_quantity(1, 2)) // Health potions
             .with_gold(3, 8);
 
         self.register_table(wolf_table);

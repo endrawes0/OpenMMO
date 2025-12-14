@@ -4,7 +4,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use chrono::{DateTime, Utc};
+
 use regex::Regex;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -13,6 +13,7 @@ use crate::accounts::{AccountError, AccountResult};
 use crate::db::models::{Account, Character};
 
 /// Account service for managing user accounts and authentication
+#[derive(Clone)]
 pub struct AccountService {
     pool: PgPool,
 }
@@ -78,7 +79,9 @@ impl AccountService {
 
         // Check if account is banned
         if account.is_banned {
-            let reason = account.ban_reason.unwrap_or_else(|| "No reason provided".to_string());
+            let reason = account
+                .ban_reason
+                .unwrap_or_else(|| "No reason provided".to_string());
             return Err(AccountError::AccountBanned { reason });
         }
 
@@ -93,7 +96,7 @@ impl AccountService {
 
     /// Find an account by username or email
     pub async fn find_account(&self, username_or_email: &str) -> AccountResult<Account> {
-        let account = sqlx::query_as!(
+        let query = sqlx::query_as!(
             Account,
             r#"
             SELECT id, username, email, password_hash, created_at, updated_at,
@@ -102,17 +105,16 @@ impl AccountService {
             WHERE username = $1 OR email = $1
             "#,
             username_or_email
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(AccountError::AccountNotFound)?;
+        );
+        let account: Option<Account> = query.fetch_optional(&self.pool).await?;
+        let account = account.ok_or(AccountError::AccountNotFound)?;
 
         Ok(account)
     }
 
     /// Get account by ID
     pub async fn get_account(&self, account_id: Uuid) -> AccountResult<Account> {
-        let account = sqlx::query_as!(
+        let query = sqlx::query_as!(
             Account,
             r#"
             SELECT id, username, email, password_hash, created_at, updated_at,
@@ -121,10 +123,9 @@ impl AccountService {
             WHERE id = $1
             "#,
             account_id
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(AccountError::AccountNotFound)?;
+        );
+        let account: Option<Account> = query.fetch_optional(&self.pool).await?;
+        let account = account.ok_or(AccountError::AccountNotFound)?;
 
         Ok(account)
     }
@@ -204,9 +205,13 @@ impl AccountService {
     }
 
     /// Delete a character
-    pub async fn delete_character(&self, account_id: Uuid, character_id: Uuid) -> AccountResult<()> {
+    pub async fn delete_character(
+        &self,
+        account_id: Uuid,
+        character_id: Uuid,
+    ) -> AccountResult<()> {
         // Verify character belongs to account
-        let result = sqlx::query!(
+        let result: sqlx::postgres::PgQueryResult = sqlx::query!(
             r#"
             DELETE FROM characters
             WHERE id = $1 AND account_id = $2
@@ -225,7 +230,11 @@ impl AccountService {
     }
 
     /// Update character online status
-    pub async fn set_character_online(&self, character_id: Uuid, online: bool) -> AccountResult<()> {
+    pub async fn set_character_online(
+        &self,
+        character_id: Uuid,
+        online: bool,
+    ) -> AccountResult<()> {
         sqlx::query!(
             r#"
             UPDATE characters
@@ -385,8 +394,8 @@ impl AccountService {
     }
 
     fn verify_password(&self, password: &str, hash: &str) -> AccountResult<()> {
-        let parsed_hash = PasswordHash::new(hash)
-            .map_err(|_| AccountError::PasswordVerificationFailed)?;
+        let parsed_hash =
+            PasswordHash::new(hash).map_err(|_| AccountError::PasswordVerificationFailed)?;
 
         Argon2::default()
             .verify_password(password.as_bytes(), &parsed_hash)

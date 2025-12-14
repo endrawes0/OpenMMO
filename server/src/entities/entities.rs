@@ -3,9 +3,9 @@
 //! This module defines the different types of entities in the game
 //! and the Entity struct that composes components.
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::entities::components::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Entity archetype enumeration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,8 +162,8 @@ impl Entity {
                 faction: Faction::Hostile,
                 reputation: HashMap::new(),
             }),
-            inventory: None, // Mobs don't have inventory
-            equipment: None, // Mobs don't equip items
+            inventory: None,   // Mobs don't have inventory
+            equipment: None,   // Mobs don't equip items
             progression: None, // Mobs don't level up
             quest_state: None, // Mobs don't have quests
             appearance: Some(Appearance {
@@ -196,10 +196,10 @@ impl Entity {
                 maximum: 1,
                 regeneration_rate: 0.0, // NPCs don't regenerate
             }),
-            movement: None, // NPCs don't move
-            combat: None, // NPCs don't fight
+            movement: None,  // NPCs don't move
+            combat: None,    // NPCs don't fight
             abilities: None, // NPCs don't have abilities
-            ai: None, // NPCs don't have AI
+            ai: None,        // NPCs don't have AI
             social: Some(Social {
                 faction: Faction::Friendly,
                 reputation: HashMap::new(),
@@ -236,9 +236,9 @@ impl Entity {
                 z: 0.0,
                 rotation: 0.0,
             }),
-            health: None, // World objects may or may not have health
+            health: None,   // World objects may or may not have health
             movement: None, // World objects don't move
-            combat: None, // World objects don't fight
+            combat: None,   // World objects don't fight
             abilities: None,
             ai: None,
             social: Some(Social {
@@ -292,8 +292,8 @@ impl Entity {
     /// Check if entity is hostile toward another entity
     pub fn is_hostile_toward(&self, other: &Entity) -> bool {
         if let (Some(social1), Some(social2)) = (&self.social, &other.social) {
-            matches!(social1.faction, Faction::Hostile) &&
-            matches!(social2.faction, Faction::Player)
+            matches!(social1.faction, Faction::Hostile)
+                && matches!(social2.faction, Faction::Player)
         } else {
             false
         }

@@ -1,9 +1,9 @@
 //! Inventory management system
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::items::{ItemId, ItemInstance, ItemDefinition, ItemRegistry};
 use crate::entities::EntityId;
+use crate::items::{ItemId, ItemInstance, ItemRegistry};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Inventory slot identifier
 pub type SlotId = u32;
@@ -26,13 +26,18 @@ impl Inventory {
     }
 
     /// Add an item to the inventory
-    pub fn add_item(&mut self, item: ItemInstance, registry: &ItemRegistry) -> Result<(), InventoryError> {
-        let definition = registry.get_item(item.definition_id)
+    pub fn add_item(
+        &mut self,
+        item: ItemInstance,
+        registry: &ItemRegistry,
+    ) -> Result<(), InventoryError> {
+        let definition = registry
+            .get_item(item.definition_id)
             .ok_or(InventoryError::InvalidItem)?;
 
         // Try to stack with existing items first
         if item.quantity > 0 {
-            for (slot_id, existing_item) in &mut self.slots {
+            for (_slot_id, existing_item) in &mut self.slots {
                 if existing_item.is_stackable(&item) && existing_item.can_stack_more(definition) {
                     let can_add = existing_item.stack_limit(definition).min(item.quantity);
                     existing_item.quantity += can_add;
@@ -54,12 +59,18 @@ impl Inventory {
     }
 
     /// Add item to a new slot
-    fn add_item_to_new_slot(&mut self, item: ItemInstance, registry: &ItemRegistry) -> Result<(), InventoryError> {
-        let next_slot = self.find_empty_slot()
+    fn add_item_to_new_slot(
+        &mut self,
+        item: ItemInstance,
+        registry: &ItemRegistry,
+    ) -> Result<(), InventoryError> {
+        let next_slot = self
+            .find_empty_slot()
             .ok_or(InventoryError::InventoryFull)?;
 
         // Validate the item exists
-        registry.get_item(item.definition_id)
+        registry
+            .get_item(item.definition_id)
             .ok_or(InventoryError::InvalidItem)?;
 
         self.slots.insert(next_slot, item);
@@ -67,8 +78,14 @@ impl Inventory {
     }
 
     /// Remove items from inventory
-    pub fn remove_item(&mut self, slot_id: SlotId, quantity: u32) -> Result<ItemInstance, InventoryError> {
-        let item = self.slots.get_mut(&slot_id)
+    pub fn remove_item(
+        &mut self,
+        slot_id: SlotId,
+        quantity: u32,
+    ) -> Result<ItemInstance, InventoryError> {
+        let item = self
+            .slots
+            .get_mut(&slot_id)
             .ok_or(InventoryError::SlotNotFound)?;
 
         if item.quantity < quantity {
@@ -95,7 +112,9 @@ impl Inventory {
             return Ok(()); // No-op
         }
 
-        let from_item = self.slots.remove(&from_slot)
+        let from_item = self
+            .slots
+            .remove(&from_slot)
             .ok_or(InventoryError::SlotNotFound)?;
 
         if let Some(to_item) = self.slots.remove(&to_slot) {
@@ -117,12 +136,16 @@ impl Inventory {
 
     /// Get all items in inventory
     pub fn get_all_items(&self) -> Vec<(SlotId, &ItemInstance)> {
-        self.slots.iter().map(|(slot, item)| (*slot, item)).collect()
+        self.slots
+            .iter()
+            .map(|(slot, item)| (*slot, item))
+            .collect()
     }
 
     /// Count total items of a specific type
     pub fn count_item(&self, item_id: ItemId) -> u32 {
-        self.slots.values()
+        self.slots
+            .values()
             .filter(|item| item.definition_id == item_id)
             .map(|item| item.quantity)
             .sum()
@@ -155,9 +178,11 @@ impl Inventory {
 
     /// Get total value of all items
     pub fn total_value(&self, registry: &ItemRegistry) -> u32 {
-        self.slots.values()
+        self.slots
+            .values()
             .filter_map(|item| {
-                registry.get_item(item.definition_id)
+                registry
+                    .get_item(item.definition_id)
                     .map(|def| def.value * item.quantity)
             })
             .sum()

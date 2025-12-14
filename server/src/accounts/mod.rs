@@ -3,8 +3,8 @@
 //! This module provides account registration, login, and management functionality
 //! with secure password hashing using Argon2.
 
-pub mod service;
 pub mod errors;
+pub mod service;
 
-pub use service::*;
 pub use errors::*;
+pub use service::*;

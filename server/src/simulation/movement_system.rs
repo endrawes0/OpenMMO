@@ -3,8 +3,8 @@
 //! This module handles player movement intents, validates them,
 //! and updates entity positions.
 
+
 use crate::entities::{Entity, EntityId};
-use crate::entities::components::{Position, Movement};
 use crate::world::WorldState;
 
 /// Movement intent from a client
@@ -24,17 +24,21 @@ impl MovementSystem {
     /// Process a movement intent
     pub fn process_movement_intent(
         world_state: &mut WorldState,
-        intent: MovementIntent
+        intent: MovementIntent,
     ) -> Result<(), String> {
         // Get the player's zone
-        let zone_id = world_state.get_player_zone_id(intent.player_id)
+        let zone_id = world_state
+            .get_player_zone_id(intent.player_id)
             .ok_or_else(|| format!("Player {} not in any zone", intent.player_id))?;
 
-        let zone = world_state.get_zone_mut(zone_id)
+        let zone = world_state
+            .get_zone_mut(zone_id)
             .ok_or_else(|| format!("Zone {} not found", zone_id))?;
 
         // Get the player entity
-        let entity = zone.entities.get_entity_mut(intent.player_id)
+        let entity = zone
+            .entities
+            .get_entity_mut(intent.player_id)
             .ok_or_else(|| format!("Player entity {} not found", intent.player_id))?;
 
         // Validate movement
@@ -107,13 +111,17 @@ impl MovementSystem {
 
     /// Stop movement for an entity
     pub fn stop_movement(world_state: &mut WorldState, entity_id: EntityId) -> Result<(), String> {
-        let zone_id = world_state.get_player_zone_id(entity_id)
+        let zone_id = world_state
+            .get_player_zone_id(entity_id)
             .ok_or_else(|| format!("Entity {} not in any zone", entity_id))?;
 
-        let zone = world_state.get_zone_mut(zone_id)
+        let zone = world_state
+            .get_zone_mut(zone_id)
             .ok_or_else(|| format!("Zone {} not found", zone_id))?;
 
-        let entity = zone.entities.get_entity_mut(entity_id)
+        let entity = zone
+            .entities
+            .get_entity_mut(entity_id)
             .ok_or_else(|| format!("Entity {} not found", entity_id))?;
 
         if let Some(movement) = &mut entity.movement {
@@ -127,7 +135,10 @@ impl MovementSystem {
     }
 
     /// Get current position of an entity
-    pub fn get_entity_position(world_state: &WorldState, entity_id: EntityId) -> Option<(f32, f32, f32)> {
+    pub fn get_entity_position(
+        world_state: &WorldState,
+        entity_id: EntityId,
+    ) -> Option<(f32, f32, f32)> {
         let zone = world_state.get_player_zone(entity_id)?;
         let entity = zone.entities.get_entity(entity_id)?;
         entity.position.as_ref().map(|p| (p.x, p.y, p.z))

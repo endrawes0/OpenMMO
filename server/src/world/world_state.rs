@@ -3,11 +3,11 @@
 //! This module manages the overall game world state, including
 //! all zones and cross-zone operations.
 
-use std::collections::{HashMap, VecDeque};
-use crate::world::Zone;
 use crate::entities::EntityId;
 use crate::network::MovementIntent;
 use crate::simulation::CombatAction;
+use crate::world::Zone;
+use std::collections::{HashMap, VecDeque};
 use tracing::warn;
 
 /// Manages the entire game world
@@ -52,7 +52,8 @@ impl WorldState {
 
     /// Get the zone a player is currently in
     pub fn get_player_zone(&self, player_id: EntityId) -> Option<&Zone> {
-        self.player_zone_map.get(&player_id)
+        self.player_zone_map
+            .get(&player_id)
             .and_then(|zone_id| self.zones.get(zone_id))
     }
 
@@ -62,7 +63,11 @@ impl WorldState {
     }
 
     /// Move a player to a different zone
-    pub fn move_player_to_zone(&mut self, player_id: EntityId, new_zone_id: u32) -> Result<(), String> {
+    pub fn move_player_to_zone(
+        &mut self,
+        player_id: EntityId,
+        new_zone_id: u32,
+    ) -> Result<(), String> {
         // Remove from current zone
         if let Some(current_zone_id) = self.player_zone_map.get(&player_id).cloned() {
             if let Some(current_zone) = self.zones.get_mut(&current_zone_id) {
@@ -105,7 +110,8 @@ impl WorldState {
         let mut transitions = Vec::new();
 
         for (&zone_id, zone) in &self.zones {
-            for &player_id in &zone.active_players.clone() { // Clone to avoid borrow issues
+            for &player_id in &zone.active_players.clone() {
+                // Clone to avoid borrow issues
                 if let Some(entity) = zone.entities.get_entity(player_id) {
                     if let Some(position) = &entity.position {
                         // Check transition from starter zone (1) to second zone (2)
@@ -122,14 +128,24 @@ impl WorldState {
         }
 
         for (player_id, new_zone_id, new_position) in transitions {
-            if let Err(e) = self.move_player_to_zone_with_position(player_id, new_zone_id, new_position) {
-                warn!("Failed to move player {} to zone {}: {}", player_id, new_zone_id, e);
+            if let Err(e) =
+                self.move_player_to_zone_with_position(player_id, new_zone_id, new_position)
+            {
+                warn!(
+                    "Failed to move player {} to zone {}: {}",
+                    player_id, new_zone_id, e
+                );
             }
         }
     }
 
     /// Move a player to a different zone with specific position
-    pub fn move_player_to_zone_with_position(&mut self, player_id: EntityId, new_zone_id: u32, position: (f32, f32, f32)) -> Result<(), String> {
+    pub fn move_player_to_zone_with_position(
+        &mut self,
+        player_id: EntityId,
+        new_zone_id: u32,
+        position: (f32, f32, f32),
+    ) -> Result<(), String> {
         // Remove from current zone
         if let Some(current_zone_id) = self.player_zone_map.get(&player_id).cloned() {
             if let Some(current_zone) = self.zones.get_mut(&current_zone_id) {
