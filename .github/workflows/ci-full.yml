@@ -138,15 +138,11 @@ jobs:
 
     - name: Test migrations
       run: |
-        # Temporarily skip database migration testing for Phase 1 completion
-        echo "Skipping database migration testing for Phase 1 infrastructure setup"
-        echo "Database migrations will be restored after Phase 1 merge"
-        # env:
-        #   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_migration_test
-        # run: |
-        #   sqlx database create
-        #   sqlx migrate run --source migrations
-        #   echo "Database migrations validated"
+        sqlx database create
+        sqlx migrate run --source migrations
+        echo "Database migrations validated"
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_migration_test
 
   code-quality:
     name: Code Quality Gates
