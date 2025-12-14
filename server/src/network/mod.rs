@@ -15,6 +15,16 @@ pub struct Session {
     pub connected_at: std::time::Instant,
 }
 
+/// Movement intent from a client
+#[derive(Debug, Clone)]
+pub struct MovementIntent {
+    pub player_id: u64,
+    pub target_x: f32,
+    pub target_y: f32,
+    pub target_z: f32,
+    pub speed_modifier: f32,
+}
+
 /// Session store for managing connected clients
 #[derive(Debug, Clone)]
 pub struct SessionStore {

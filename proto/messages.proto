@@ -22,14 +22,22 @@ message Envelope {
     MovementIntent movement_intent = 12;
     CombatAction combat_action = 13;
     EntityUpdate entity_update = 14;
-    CharacterListRequest character_list_request = 15;
-    CharacterListResponse character_list_response = 16;
-    CharacterCreateRequest character_create_request = 17;
-    CharacterCreateResponse character_create_response = 18;
-    CharacterSelectRequest character_select_request = 19;
-    CharacterSelectResponse character_select_response = 20;
-    CharacterDeleteRequest character_delete_request = 21;
-    CharacterDeleteResponse character_delete_response = 22;
+     CharacterListRequest character_list_request = 15;
+     CharacterListResponse character_list_response = 16;
+     CharacterCreateRequest character_create_request = 17;
+     CharacterCreateResponse character_create_response = 18;
+     CharacterSelectRequest character_select_request = 19;
+     CharacterSelectResponse character_select_response = 20;
+     CharacterDeleteRequest character_delete_request = 21;
+     CharacterDeleteResponse character_delete_response = 22;
+     InventoryRequest inventory_request = 23;
+     InventoryResponse inventory_response = 24;
+     ItemMoveRequest item_move_request = 25;
+     ItemMoveResponse item_move_response = 26;
+     EquipmentRequest equipment_request = 27;
+     EquipmentResponse equipment_response = 28;
+     ItemEquipRequest item_equip_request = 29;
+     ItemEquipResponse item_equip_response = 30;
   }
 }
 
@@ -238,6 +246,78 @@ message CharacterDeleteRequest {
 
 // Delete character response
 message CharacterDeleteResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Inventory management messages
+
+// Request inventory contents
+message InventoryRequest {
+}
+
+// Response with inventory contents
+message InventoryResponse {
+  repeated InventorySlot slots = 1;
+  uint32 max_slots = 2;
+}
+
+// Inventory slot information
+message InventorySlot {
+  uint32 slot_id = 1;
+  ItemInstance item = 2;
+}
+
+// Item instance
+message ItemInstance {
+  uint32 definition_id = 1;
+  uint32 quantity = 2;
+  bool is_bound = 3;
+  optional ItemDurability durability = 4;
+}
+
+// Item durability
+message ItemDurability {
+  uint32 current = 1;
+  uint32 maximum = 2;
+}
+
+// Move item between inventory slots
+message ItemMoveRequest {
+  uint32 from_slot = 1;
+  uint32 to_slot = 2;
+}
+
+// Move item response
+message ItemMoveResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Request equipment contents
+message EquipmentRequest {
+}
+
+// Response with equipment contents
+message EquipmentResponse {
+  repeated EquipmentSlot slots = 1;
+}
+
+// Equipment slot information
+message EquipmentSlot {
+  uint32 slot_type = 1;  // EquipmentSlot enum value
+  ItemInstance item = 2;
+}
+
+// Equip/unequip item request
+message ItemEquipRequest {
+  uint32 inventory_slot = 1;
+  uint32 equipment_slot = 2;
+  bool unequip = 3;  // If true, unequip from equipment_slot
+}
+
+// Equip/unequip item response
+message ItemEquipResponse {
   bool success = 1;
   string error_message = 2;
 }

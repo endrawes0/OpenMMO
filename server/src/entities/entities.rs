@@ -4,6 +4,7 @@
 //! and the Entity struct that composes components.
 
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use crate::entities::components::*;
 
 /// Entity archetype enumeration
