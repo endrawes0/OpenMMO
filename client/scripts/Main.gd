@@ -202,7 +202,7 @@ func _connect_and_authenticate(url: String, username: String, password: String, 
 
 func _retry_login():
 	if _last_server_url and _last_username and _last_password:
-		_connect_and_login(_last_server_url, _last_username, _last_password)
+		_connect_and_authenticate(_last_server_url, _last_username, _last_password, false)
 
 # Stored credentials for retry
 var _last_server_url = ""
