@@ -157,6 +157,17 @@ run_quality_checks() {
     fi
     echo "Documentation check completed"
 
+    echo "🔍 Checking SQLX query preparation..."
+    unset DATABASE_URL  # Unset to force offline mode, matching remote CI
+    if command -v sqlx &> /dev/null; then
+        cargo sqlx prepare --check --workspace
+    else
+        echo "Installing sqlx-cli..."
+        cargo install sqlx-cli --no-default-features --features native-tls,postgres
+        cargo sqlx prepare --check --workspace
+    fi
+    print_status $? "SQLX query preparation check"
+
     echo "📄 Checking for unused dependencies..."
     if command -v cargo-machete &> /dev/null; then
         cargo machete

@@ -193,7 +193,7 @@ jobs:
     - name: Check SQLX query preparation
       run: |
         cargo install sqlx-cli --no-default-features --features native-tls,postgres
-        cargo sqlx prepare --check
+        cargo sqlx prepare --check --workspace
 
     - name: Validate file organization
       run: |
