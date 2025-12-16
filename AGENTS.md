@@ -124,8 +124,11 @@ Agents MUST treat all client input as untrusted:
 - Ability usage must be checked  
 - Inventory operations must be server-authoritative
 
-4. **No Sensitive Data in Logs**  
+4. **No Sensitive Data in Logs**
 Logs MUST NOT contain passwords, session tokens, or PII beyond usernames.
+
+5. **Security Vulnerabilities**
+Agents MUST NOT add security vulnerabilities to audit ignore lists without explicit user confirmation. All security decisions regarding known vulnerabilities must be approved by a human maintainer.
 
 ---
 
