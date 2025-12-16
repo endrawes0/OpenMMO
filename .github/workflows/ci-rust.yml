@@ -76,7 +76,9 @@ jobs:
     - name: Run tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
-      run: cargo test --workspace --verbose
+      run: |
+        sqlx migrate run --source migrations
+        cargo test --workspace --verbose
 
     - name: Check SQLx migrations (offline mode)
       run: |

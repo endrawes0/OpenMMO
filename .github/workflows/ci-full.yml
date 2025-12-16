@@ -56,12 +56,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
 
-    - name: Run database migrations
-      run: |
-        cargo install sqlx-cli --no-default-features --features native-tls,postgres
-        sqlx migrate run --source migrations
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
 
     - name: Check formatting
       run: cargo fmt --all -- --check
@@ -79,7 +73,9 @@ jobs:
     - name: Run tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
-      run: cargo test --workspace --verbose
+      run: |
+        sqlx migrate run --source migrations
+        cargo test --workspace --verbose
 
     - name: Security audit
       uses: actions-rs/audit-check@v1
