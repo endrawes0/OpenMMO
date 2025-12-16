@@ -36,15 +36,20 @@ check_dependencies() {
         echo -e "${RED}❌ Rust/Cargo not found${NC}"
         exit 1
     fi
-    
-    if ! command -v godot &> /dev/null; then
-        echo -e "${YELLOW}⚠️  Godot not found - skipping Godot checks${NC}"
-        SKIP_GODOT=true
+
+    if ! command -v protoc &> /dev/null; then
+        echo -e "${RED}❌ Protocol Buffers compiler (protoc) not found${NC}"
+        exit 1
     fi
     
-    if ! command -v psql &> /dev/null; then
-        echo -e "${YELLOW}⚠️  PostgreSQL not found - skipping database checks${NC}"
-        SKIP_DB=true
+    if ! command -v godot &> /dev/null; then
+        echo -e "${RED}❌ Godot not found - required for client validation${NC}"
+        exit 1
+    fi
+
+    if ! command -v psql &> /dev/null && ! command -v docker &> /dev/null; then
+        echo -e "${RED}❌ PostgreSQL or Docker not found - required for database checks${NC}"
+        exit 1
     fi
     
     print_status 0 "Dependencies checked"
@@ -53,23 +58,32 @@ check_dependencies() {
 # Rust server checks
 run_rust_checks() {
     print_info "Running Rust server checks..."
-    
+
+    # Set environment variables to match CI
+    export CARGO_TERM_COLOR=always
+    export CARGO_INCREMENTAL=0
+    export RUST_BACKTRACE=1
+
     echo "📝 Checking formatting..."
     cargo fmt --all -- --check
     print_status $? "Rust formatting check"
-    
+
     echo "🔍 Running clippy..."
-    SQLX_OFFLINE=false cargo clippy --workspace --all-targets --all-features -- -A dead_code
+    SQLX_OFFLINE=true cargo clippy --workspace --all-targets --all-features -- -A dead_code
     print_status $? "Clippy linting"
-    
+
     echo "🏗️  Building workspace..."
-    cargo build --workspace --verbose
+    SQLX_OFFLINE=true cargo build --workspace --verbose
     print_status $? "Build workspace"
-    
+
+    echo "🔍 Checking SQLx offline mode..."
+    DATABASE_URL="" cargo check -p server
+    print_status $? "SQLx offline check"
+
     echo "🧪 Running tests..."
     cargo test --workspace --verbose
     print_status $? "Unit tests"
-    
+
     echo "🔒 Running security audit..."
     if command -v cargo-audit &> /dev/null; then
         cargo audit
@@ -79,7 +93,7 @@ run_rust_checks() {
         cargo audit
     fi
     print_status $? "Security audit"
-    
+
     echo "📚 Checking documentation build..."
     cargo doc --workspace --no-deps --document-private-items
     print_status $? "Documentation build"
@@ -113,29 +127,65 @@ run_godot_checks() {
 
 # Database checks
 run_database_checks() {
-    if [ "$SKIP_DB" = true ]; then
-        print_info "Skipping database checks (PostgreSQL not available)"
-        return
-    fi
-    
     print_info "Running database migration checks..."
-    
-    # Check if test database exists and is accessible
-    if psql -h localhost -U postgres -d openmmo_test -c "SELECT 1;" &> /dev/null; then
-        echo "🗄️  Testing migrations..."
+
+    # Try to set up database with Docker if available
+    if command -v docker &> /dev/null; then
+        echo "🐳 Starting test database with Docker..."
+        docker-compose up -d db
+
+        # Wait for database to be ready
+        echo "⏳ Waiting for database to be ready..."
+        for i in {1..30}; do
+            if docker-compose exec -T db pg_isready -U postgres -d openmmo_test &> /dev/null; then
+                break
+            fi
+            sleep 1
+        done
+
         export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/openmmo_test"
-        
+
+        echo "🗄️  Running migrations..."
         if command -v sqlx &> /dev/null; then
-            sqlx migrate info --source migrations
-            print_status $? "Migration info"
+            sqlx migrate run --source migrations
+            print_status $? "Migration run"
         else
             echo "sqlx-cli not found, installing..."
             cargo install sqlx-cli --no-default-features --features native-tls,postgres
-            sqlx migrate info --source migrations
-            print_status $? "Migration info"
+            sqlx migrate run --source migrations
+            print_status $? "Migration run"
+        fi
+
+        # Generate SQLx cache
+        echo "🔄 Generating SQLx offline cache..."
+        cargo sqlx prepare --workspace
+        print_status $? "SQLx prepare"
+
+        # Clean up
+        echo "🧹 Cleaning up test database..."
+        docker-compose down
+
+    elif command -v psql &> /dev/null; then
+        # Use existing PostgreSQL
+        if psql -h localhost -U postgres -d openmmo_test -c "SELECT 1;" &> /dev/null; then
+            export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/openmmo_test"
+
+            if command -v sqlx &> /dev/null; then
+                sqlx migrate info --source migrations
+                print_status $? "Migration info"
+            else
+                echo "sqlx-cli not found, installing..."
+                cargo install sqlx-cli --no-default-features --features native-tls,postgres
+                sqlx migrate info --source migrations
+                print_status $? "Migration info"
+            fi
+        else
+            echo -e "${RED}❌ Test database not available${NC}"
+            exit 1
         fi
     else
-        print_info "Test database not available, skipping migration tests"
+        echo -e "${RED}❌ No database setup available${NC}"
+        exit 1
     fi
 }
 
