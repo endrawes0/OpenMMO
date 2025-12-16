@@ -269,20 +269,30 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                             // Handle authentication request
                             let auth_result = if auth.character_name.is_some() {
                                 // This is a login request (character_name is provided for login)
-                                state.account_service.authenticate(&auth.username, &auth.password_hash).await
+                                state
+                                    .account_service
+                                    .authenticate(&auth.username, &auth.password_hash)
+                                    .await
                             } else {
                                 // This is a registration request (no character_name means register)
                                 // For registration, we need an email, but the client doesn't provide one
                                 // For MVP, we'll treat this as login and auto-create account if it doesn't exist
-                                match state.account_service.authenticate(&auth.username, &auth.password_hash).await {
+                                match state
+                                    .account_service
+                                    .authenticate(&auth.username, &auth.password_hash)
+                                    .await
+                                {
                                     Ok(account) => Ok(account),
                                     Err(_) => {
                                         // Try to register the account
-                                        state.account_service.register(
-                                            auth.username.clone(),
-                                            format!("{}@openmmo.local", auth.username), // Auto-generate email
-                                            auth.password_hash.clone(),
-                                        ).await
+                                        state
+                                            .account_service
+                                            .register(
+                                                auth.username.clone(),
+                                                format!("{}@openmmo.local", auth.username), // Auto-generate email
+                                                auth.password_hash.clone(),
+                                            )
+                                            .await
                                     }
                                 }
                             };
@@ -291,7 +301,15 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 Ok(account) => {
                                     // Update session with account info
                                     let player_id_u64 = account.id.as_u128() as u64;
-                                    state.session_store.authenticate_session(&session_id, account.id, player_id_u64, 0).await;
+                                    state
+                                        .session_store
+                                        .authenticate_session(
+                                            &session_id,
+                                            account.id,
+                                            player_id_u64,
+                                            0,
+                                        )
+                                        .await;
 
                                     network::messages::AuthResponse {
                                         success: true,
@@ -301,15 +319,13 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                         character_id: None, // Will be set when character is selected
                                     }
                                 }
-                                Err(e) => {
-                                    network::messages::AuthResponse {
-                                        success: false,
-                                        session_token: None,
-                                        message: format!("Authentication failed: {:?}", e),
-                                        player_id: None,
-                                        character_id: None,
-                                    }
-                                }
+                                Err(e) => network::messages::AuthResponse {
+                                    success: false,
+                                    session_token: None,
+                                    message: format!("Authentication failed: {:?}", e),
+                                    player_id: None,
+                                    character_id: None,
+                                },
                             };
 
                             let response = Envelope {
@@ -330,7 +346,9 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                         Payload::CharacterCreateRequest(create_req) => {
                             // Handle character creation request
                             // Check if session exists and is authenticated
-                            let session = if let Some(s) = state.session_store.get_session(&session_id).await {
+                            let session = if let Some(s) =
+                                state.session_store.get_session(&session_id).await
+                            {
                                 s
                             } else {
                                 // Send error response - session not found
@@ -345,7 +363,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     timestamp: SystemTime::now()
                                         .duration_since(UNIX_EPOCH)
                                         .unwrap()
-                                        .as_millis() as u64,
+                                        .as_millis()
+                                        as u64,
                                     payload: Payload::CharacterCreateResponse(error_response),
                                 };
 
@@ -370,7 +389,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     timestamp: SystemTime::now()
                                         .duration_since(UNIX_EPOCH)
                                         .unwrap()
-                                        .as_millis() as u64,
+                                        .as_millis()
+                                        as u64,
                                     payload: Payload::CharacterCreateResponse(error_response),
                                 };
 
@@ -380,40 +400,42 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 continue;
                             };
 
-                            let create_result = state.account_service.create_character(
-                                account_id,
-                                create_req.name.clone(),
-                                create_req.class.clone(),
-                            ).await;
+                            let create_result = state
+                                .account_service
+                                .create_character(
+                                    account_id,
+                                    create_req.name.clone(),
+                                    create_req.class.clone(),
+                                )
+                                .await;
 
                             let create_response = match create_result {
-                                Ok(character) => {
-                                    network::messages::CharacterCreateResponse {
-                                        success: true,
-                                        character: Some(network::messages::CharacterInfo {
-                                            id: character.id.as_u128() as u64,
-                                            name: character.name,
-                                            class: character.class,
-                                            level: character.level as u32,
-                                            experience: character.experience as u64,
-                                            zone_id: character.zone_id,
-                                            health: character.health as u32,
-                                            max_health: character.max_health as u32,
-                                            resource_type: character.resource_type,
-                                            resource_value: character.resource_value as u32,
-                                            max_resource: character.max_resource as u32,
-                                            is_online: character.is_online,
-                                        }),
-                                        error_message: None,
-                                    }
-                                }
-                                Err(e) => {
-                                    network::messages::CharacterCreateResponse {
-                                        success: false,
-                                        character: None,
-                                        error_message: Some(format!("Character creation failed: {:?}", e)),
-                                    }
-                                }
+                                Ok(character) => network::messages::CharacterCreateResponse {
+                                    success: true,
+                                    character: Some(network::messages::CharacterInfo {
+                                        id: character.id.as_u128() as u64,
+                                        name: character.name,
+                                        class: character.class,
+                                        level: character.level as u32,
+                                        experience: character.experience as u64,
+                                        zone_id: character.zone_id,
+                                        health: character.health as u32,
+                                        max_health: character.max_health as u32,
+                                        resource_type: character.resource_type,
+                                        resource_value: character.resource_value as u32,
+                                        max_resource: character.max_resource as u32,
+                                        is_online: character.is_online,
+                                    }),
+                                    error_message: None,
+                                },
+                                Err(e) => network::messages::CharacterCreateResponse {
+                                    success: false,
+                                    character: None,
+                                    error_message: Some(format!(
+                                        "Character creation failed: {:?}",
+                                        e
+                                    )),
+                                },
                             };
 
                             let response = Envelope {
@@ -434,21 +456,27 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                         Payload::CharacterListRequest(_req) => {
                             // Handle character list request
                             // Get account_id from session
-                            let account_id = match state.session_store.get_session(&session_id).await {
+                            let account_id = match state
+                                .session_store
+                                .get_session(&session_id)
+                                .await
+                            {
                                 Some(session) => match session.account_id {
                                     Some(id) => id,
                                     None => {
                                         // Send error response - not authenticated
-                                        let error_response = network::messages::CharacterListResponse {
-                                            characters: vec![],
-                                        };
+                                        let error_response =
+                                            network::messages::CharacterListResponse {
+                                                characters: vec![],
+                                            };
 
                                         let response = Envelope {
                                             sequence_id: envelope.sequence_id,
                                             timestamp: SystemTime::now()
                                                 .duration_since(UNIX_EPOCH)
                                                 .unwrap()
-                                                .as_millis() as u64,
+                                                .as_millis()
+                                                as u64,
                                             payload: Payload::CharacterListResponse(error_response),
                                         };
 
@@ -469,7 +497,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                         timestamp: SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
-                                            .as_millis() as u64,
+                                            .as_millis()
+                                            as u64,
                                         payload: Payload::CharacterListResponse(error_response),
                                     };
 
@@ -480,26 +509,29 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                             };
 
-                            let characters_result = state.account_service.get_characters(account_id).await;
+                            let characters_result =
+                                state.account_service.get_characters(account_id).await;
 
                             let character_list_response = match characters_result {
                                 Ok(characters) => {
-                                    let character_infos: Vec<network::messages::CharacterInfo> = characters.into_iter().map(|c| {
-                                        network::messages::CharacterInfo {
-                                            id: c.id.as_u128() as u64,
-                                            name: c.name,
-                                            class: c.class,
-                                            level: c.level as u32,
-                                            experience: c.experience as u64,
-                                            zone_id: c.zone_id,
-                                            health: c.health as u32,
-                                            max_health: c.max_health as u32,
-                                            resource_type: c.resource_type,
-                                            resource_value: c.resource_value as u32,
-                                            max_resource: c.max_resource as u32,
-                                            is_online: c.is_online,
-                                        }
-                                    }).collect();
+                                    let character_infos: Vec<network::messages::CharacterInfo> =
+                                        characters
+                                            .into_iter()
+                                            .map(|c| network::messages::CharacterInfo {
+                                                id: c.id.as_u128() as u64,
+                                                name: c.name,
+                                                class: c.class,
+                                                level: c.level as u32,
+                                                experience: c.experience as u64,
+                                                zone_id: c.zone_id,
+                                                health: c.health as u32,
+                                                max_health: c.max_health as u32,
+                                                resource_type: c.resource_type,
+                                                resource_value: c.resource_value as u32,
+                                                max_resource: c.max_resource as u32,
+                                                is_online: c.is_online,
+                                            })
+                                            .collect();
 
                                     network::messages::CharacterListResponse {
                                         characters: character_infos,
@@ -507,9 +539,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                                 Err(e) => {
                                     error!("Failed to get characters: {:?}", e);
-                                    network::messages::CharacterListResponse {
-                                        characters: vec![],
-                                    }
+                                    network::messages::CharacterListResponse { characters: vec![] }
                                 }
                             };
 
@@ -531,24 +561,34 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                         Payload::CharacterSelectRequest(select_req) => {
                             // Handle character selection request
                             // Get account_id from session
-                            let account_id = match state.session_store.get_session(&session_id).await {
+                            let account_id = match state
+                                .session_store
+                                .get_session(&session_id)
+                                .await
+                            {
                                 Some(session) => match session.account_id {
                                     Some(id) => id,
                                     None => {
                                         // Send error response - not authenticated
-                                        let error_response = network::messages::CharacterSelectResponse {
-                                            success: false,
-                                            character: None,
-                                            error_message: Some("Not authenticated".to_string()),
-                                        };
+                                        let error_response =
+                                            network::messages::CharacterSelectResponse {
+                                                success: false,
+                                                character: None,
+                                                error_message: Some(
+                                                    "Not authenticated".to_string(),
+                                                ),
+                                            };
 
                                         let response = Envelope {
                                             sequence_id: envelope.sequence_id,
                                             timestamp: SystemTime::now()
                                                 .duration_since(UNIX_EPOCH)
                                                 .unwrap()
-                                                .as_millis() as u64,
-                                            payload: Payload::CharacterSelectResponse(error_response),
+                                                .as_millis()
+                                                as u64,
+                                            payload: Payload::CharacterSelectResponse(
+                                                error_response,
+                                            ),
                                         };
 
                                         if let Ok(json) = serde_json::to_string(&response) {
@@ -559,18 +599,20 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 },
                                 None => {
                                     // Send error response - session not found
-                                    let error_response = network::messages::CharacterSelectResponse {
-                                        success: false,
-                                        character: None,
-                                        error_message: Some("Session not found".to_string()),
-                                    };
+                                    let error_response =
+                                        network::messages::CharacterSelectResponse {
+                                            success: false,
+                                            character: None,
+                                            error_message: Some("Session not found".to_string()),
+                                        };
 
                                     let response = Envelope {
                                         sequence_id: envelope.sequence_id,
                                         timestamp: SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
-                                            .as_millis() as u64,
+                                            .as_millis()
+                                            as u64,
                                         payload: Payload::CharacterSelectResponse(error_response),
                                     };
 
@@ -582,17 +624,28 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                             };
 
                             // Get all characters and find the selected one
-                            let characters_result = state.account_service.get_characters(account_id).await;
+                            let characters_result =
+                                state.account_service.get_characters(account_id).await;
 
                             let character_select_response = match characters_result {
                                 Ok(characters) => {
                                     // Find the character with the requested ID
-                                    let selected_character = characters.into_iter().find(|c| c.id.as_u128() as u64 == select_req.character_id);
+                                    let selected_character = characters
+                                        .into_iter()
+                                        .find(|c| c.id.as_u128() as u64 == select_req.character_id);
 
                                     match selected_character {
                                         Some(character) => {
                                             // Update session with selected character
-                                            state.session_store.authenticate_session(&session_id, account_id, character.id.as_u128() as u64, character.id.as_u128() as u64).await;
+                                            state
+                                                .session_store
+                                                .authenticate_session(
+                                                    &session_id,
+                                                    account_id,
+                                                    character.id.as_u128() as u64,
+                                                    character.id.as_u128() as u64,
+                                                )
+                                                .await;
 
                                             network::messages::CharacterSelectResponse {
                                                 success: true,
@@ -618,7 +671,9 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                             network::messages::CharacterSelectResponse {
                                                 success: false,
                                                 character: None,
-                                                error_message: Some("Character not found".to_string()),
+                                                error_message: Some(
+                                                    "Character not found".to_string(),
+                                                ),
                                             }
                                         }
                                     }
@@ -628,7 +683,9 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     network::messages::CharacterSelectResponse {
                                         success: false,
                                         character: None,
-                                        error_message: Some("Failed to retrieve characters".to_string()),
+                                        error_message: Some(
+                                            "Failed to retrieve characters".to_string(),
+                                        ),
                                     }
                                 }
                             };
@@ -639,7 +696,9 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     .duration_since(UNIX_EPOCH)
                                     .unwrap()
                                     .as_millis() as u64,
-                                payload: Payload::CharacterSelectResponse(character_select_response),
+                                payload: Payload::CharacterSelectResponse(
+                                    character_select_response,
+                                ),
                             };
 
                             if let Ok(json) = serde_json::to_string(&response) {

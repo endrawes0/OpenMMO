@@ -70,7 +70,13 @@ impl SessionStore {
         sessions.remove(session_id);
     }
 
-    pub async fn authenticate_session(&self, session_id: &Uuid, account_id: Uuid, player_id: u64, character_id: u64) {
+    pub async fn authenticate_session(
+        &self,
+        session_id: &Uuid,
+        account_id: Uuid,
+        player_id: u64,
+        character_id: u64,
+    ) {
         if let Some(mut session) = self.get_session(session_id).await {
             session.authenticated = true;
             session.account_id = Some(account_id);

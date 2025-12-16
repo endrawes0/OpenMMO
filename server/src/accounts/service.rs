@@ -177,7 +177,8 @@ impl AccountService {
         }
 
         // Get class-specific starting stats
-        let (max_health, resource_type, max_resource) = self.get_class_starting_stats(&normalized_class)?;
+        let (max_health, resource_type, max_resource) =
+            self.get_class_starting_stats(&normalized_class)?;
 
         // Create character
         let character = sqlx::query_as!(
