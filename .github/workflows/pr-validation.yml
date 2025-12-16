@@ -42,8 +42,8 @@ jobs:
     - name: Check for feature branch naming
       run: |
         BRANCH_NAME="${{ github.head_ref }}"
-        if [[ "$BRANCH_NAME" != "feature/"* ]] && [[ "$BRANCH_NAME" != "master" ]]; then
-          echo "Branch name should follow pattern: feature/<short-description>"
+        if [[ "$BRANCH_NAME" != "feature/"* ]] && [[ "$BRANCH_NAME" != "bugfix/"* ]] && [[ "$BRANCH_NAME" != "master" ]]; then
+          echo "Branch name should follow pattern: feature/<short-description> or bugfix/<short-description>"
           echo "Current branch: $BRANCH_NAME"
           exit 1
         fi
