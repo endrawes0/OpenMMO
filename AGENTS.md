@@ -38,8 +38,11 @@ Every PR MUST include:
 - Validation steps (how reviewers can run or test it)
 - A diff that touches ONLY files required for the specific task
 
-4. **Atomicity**  
+4. **Atomicity**
 Agents MUST keep PRs small, self-contained, and focused on a single logical unit of progress.
+
+5. **CI Consistency**
+Agents MUST keep local CI scripts and remote CI workflows consistent. Changes to either MUST be made simultaneously to maintain parity between local development and CI environments.
 
 ---
 

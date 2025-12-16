@@ -196,7 +196,7 @@ run_quality_checks() {
     echo "🔍 Checking for secrets..."
     PATTERNS=("password.*=" "secret.*=" "token.*=" "api_key.*=" "AKIA[0-9A-Z]{16}")
         for pattern in "${PATTERNS[@]}"; do
-          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.sqlx' 2>/dev/null; then
+          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude).sqlx/' 2>/dev/null; then
             print_status 1 "Secret detection"
           fi
         done
