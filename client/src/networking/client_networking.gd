@@ -55,7 +55,7 @@ func connect_to_server(url: String) -> Error:
 		emit_signal("connection_error", "Failed to initiate connection: " + str(error))
 		return error
 
-	emit_signal("connected")
+	# Connection initiated successfully - actual connection will be confirmed in poll()
 	return OK
 
 func close_connection():
@@ -78,6 +78,7 @@ func poll():
 		WebSocketPeer.STATE_OPEN:
 			if connection_state != ConnectionState.CONNECTED:
 				connection_state = ConnectionState.CONNECTED
+				emit_signal("connected")
 				_send_handshake()
 		WebSocketPeer.STATE_CLOSED:
 			if connection_state != ConnectionState.DISCONNECTED:
