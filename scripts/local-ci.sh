@@ -50,6 +50,8 @@ run_rust_checks() {
     export CARGO_TERM_COLOR=always
     export CARGO_INCREMENTAL=0
     export RUST_BACKTRACE=1
+    export CARGO_INCREMENTAL=0
+    export RUST_BACKTRACE=1
 
     echo "📝 Checking formatting..."
     cargo fmt --all -- --check
@@ -140,9 +142,21 @@ run_quality_checks() {
     print_status 0 "Secret detection"
     
     echo "📁 Validating project structure..."
-    [ -d "server/" ] && [ -d "client/" ] && [ -d "migrations/" ] && [ -f "AGENTS.md" ]
-    print_status $? "Project structure"
-    
+    [ -d "server/" ] || { echo "server directory missing"; exit 1; }
+    [ -d "client/" ] || { echo "client directory missing"; exit 1; }
+    [ -d "migrations/" ] || { echo "migrations directory missing"; exit 1; }
+    [ -f "AGENTS.md" ] || { echo "AGENTS.md missing"; exit 1; }
+    echo "Project structure validation passed"
+
+    echo "📝 Checking for documentation updates..."
+    # Check if code changes require documentation updates
+    if git diff --name-only origin/master...HEAD | grep -E "\.(rs|gd)$" 2>/dev/null; then
+        if ! git diff --name-only origin/master...HEAD | grep -E "\.(md|txt)$" 2>/dev/null; then
+            echo "Warning: Code changes detected but no documentation updates"
+        fi
+    fi
+    echo "Documentation check completed"
+
     echo "📄 Checking for unused dependencies..."
     if command -v cargo-machete &> /dev/null; then
         cargo machete
