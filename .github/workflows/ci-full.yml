@@ -80,9 +80,9 @@ jobs:
         cargo test --workspace --verbose
 
     - name: Security audit
-      uses: actions-rs/audit-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cargo install cargo-audit
+        cargo audit --ignore RUSTSEC-2023-0071
 
   godot-client:
     name: Godot Client

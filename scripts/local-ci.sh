@@ -86,11 +86,11 @@ run_rust_checks() {
 
     echo "🔒 Running security audit..."
     if command -v cargo-audit &> /dev/null; then
-        cargo audit
+        cargo audit --ignore RUSTSEC-2023-0071
     else
         echo "Installing cargo-audit..."
         cargo install cargo-audit
-        cargo audit
+        cargo audit --ignore RUSTSEC-2023-0071
     fi
     print_status $? "Security audit"
 

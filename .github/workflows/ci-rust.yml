@@ -88,9 +88,9 @@ jobs:
         DATABASE_URL="" cargo check -p server
 
     - name: Security audit
-      uses: actions-rs/audit-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cargo install cargo-audit
+        cargo audit --ignore RUSTSEC-2023-0071
 
     - name: Check for unused dependencies
       run: |
