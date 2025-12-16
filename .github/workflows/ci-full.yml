@@ -76,6 +76,7 @@ jobs:
       run: |
         cargo install sqlx-cli --no-default-features --features native-tls,postgres
         sqlx migrate run --source migrations
+        cargo sqlx prepare --workspace
         cargo test --workspace --verbose
 
     - name: Security audit
