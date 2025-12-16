@@ -45,14 +45,17 @@ jobs:
         echo "protoc location: $(which protoc)"
         protoc --version || echo "protoc not found"
 
-     - name: Cache dependencies
-       uses: actions/cache@v4
-       with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
     - name: Run database migrations
       run: |
         cargo install sqlx-cli --no-default-features --features native-tls,postgres
@@ -60,18 +63,13 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
 
-
-
-
     - name: Check formatting
       run: cargo fmt --all -- --check
 
-     - name: Run clippy
-       run: cargo clippy --workspace --all-targets --all-features -- -A dead_code
+    - name: Run clippy
+      run: cargo clippy --workspace --all-targets --all-features -- -A dead_code
       env:
         SQLX_OFFLINE: true
-       env:
-         SQLX_OFFLINE: true
 
     - name: Build workspace
       run: cargo build --workspace --verbose

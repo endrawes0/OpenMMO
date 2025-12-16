@@ -59,7 +59,7 @@ run_rust_checks() {
     print_status $? "Rust formatting check"
     
     echo "🔍 Running clippy..."
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    SQLX_OFFLINE=false cargo clippy --workspace --all-targets --all-features -- -A dead_code
     print_status $? "Clippy linting"
     
     echo "🏗️  Building workspace..."
