@@ -10,10 +10,14 @@ extends Control
 @onready var exit_button = $VBoxContainer/ExitButton
 @onready var network_debug = $NetworkDebug
 
-# WebSocket connection
-var websocket = null
+# Engine-agnostic modules
+var client_networking = null
+var game_state_manager = null
+var movement_system = null
+var input_manager = null
+
+# UI state
 var ping_timer = null
-var sequence_id = 0
 
 func _ready():
 	# Initialize UI state
@@ -22,6 +26,22 @@ func _ready():
 
 	# Set default server address
 	server_address.text = "ws://localhost:8080/ws"
+
+	# Initialize engine-agnostic modules
+	_initialize_modules()
+
+func _initialize_modules():
+	# Load engine-agnostic modules
+	client_networking = load("res://src/networking/client_networking.gd").new()
+	game_state_manager = load("res://src/gamestate/game_state_manager.gd").new()
+	movement_system = load("res://src/movement/movement_system.gd").new()
+	input_manager = load("res://src/input/input_manager.gd").new()
+
+	# Connect signals
+	client_networking.connect("connected", Callable(self, "_on_network_connected"))
+	client_networking.connect("disconnected", Callable(self, "_on_network_disconnected"))
+	client_networking.connect("message_received", Callable(self, "_on_network_message_received"))
+	client_networking.connect("connection_error", Callable(self, "_on_network_error"))
 
 func _on_connect_button_pressed():
 	# UI binding only - actual connection logic will be handled by engine-agnostic modules
@@ -38,19 +58,17 @@ func _on_connect_button_pressed():
 	print("Server: ", address)
 	print("Username: ", user)
 
-	# Initialize WebSocket connection
+	# Initialize connection using networking module
 	_connect_to_server(address)
 
 func _connect_to_server(url):
-	if websocket != null:
-		websocket.close()
+	if client_networking and client_networking.is_connected():
+		client_networking.disconnect()
 
 	network_debug.set_status("Connecting...")
 	network_debug.add_message("Connecting to: " + url)
 
-	websocket = WebSocketPeer.new()
-	var error = websocket.connect_to_url(url)
-
+	var error = client_networking.connect_to_server(url)
 	if error != OK:
 		network_debug.add_message("Failed to connect: " + str(error))
 		network_debug.set_status("Connection Failed")
@@ -65,59 +83,50 @@ func _connect_to_server(url):
 	add_child(ping_timer)
 	ping_timer.start()
 
+func _process(delta):
+	if client_networking:
+		client_networking.poll()
+
 func _send_ping():
-	if websocket.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		var ping_data = {
-			"sequence_id": sequence_id,
-			"timestamp": Time.get_unix_time_from_system() * 1000,
-			"payload": {
-				"Ping": {
-					"timestamp": Time.get_unix_time_from_system() * 1000
-				}
+	if client_networking and client_networking.is_connected():
+		var ping_payload = {
+			"Ping": {
+				"timestamp": Time.get_unix_time_from_system() * 1000
 			}
 		}
-		sequence_id += 1
-
-		var json_string = JSON.stringify(ping_data)
-		websocket.send_text(json_string)
+		client_networking.send_message(ping_payload)
 		network_debug.add_message("Sent ping")
 
-func _process(delta):
-	if websocket != null:
-		websocket.poll()
+# Network signal handlers
+func _on_network_connected():
+	network_debug.set_status("Connected")
+	network_debug.add_message("WebSocket connected successfully")
 
-		var state = websocket.get_ready_state()
-		match state:
-			WebSocketPeer.STATE_OPEN:
-				if network_debug.get_status() != "Connected":
-					network_debug.set_status("Connected")
-					network_debug.add_message("WebSocket connected successfully")
-			WebSocketPeer.STATE_CLOSED:
-				if network_debug.get_status() != "Disconnected":
-					network_debug.set_status("Disconnected")
-					network_debug.add_message("WebSocket disconnected")
-					if ping_timer != null:
-						ping_timer.stop()
+func _on_network_disconnected():
+	network_debug.set_status("Disconnected")
+	network_debug.add_message("WebSocket disconnected")
+	if ping_timer != null:
+		ping_timer.stop()
 
-		# Handle incoming messages
-		while websocket.get_available_packet_count() > 0:
-			var packet = websocket.get_packet()
-			var message = packet.get_string_from_utf8()
+func _on_network_message_received(message: Dictionary):
+	network_debug.add_message("Received: " + JSON.stringify(message))
 
-			network_debug.add_message("Received: " + message)
+	# Handle specific message types
+	if message.has("payload"):
+		var payload = message.payload
+		if payload.has("Pong"):
+			network_debug.add_message("Received pong - connection healthy")
+		elif payload.has("HandshakeResponse"):
+			network_debug.add_message("Handshake completed")
 
-			# Parse JSON response
-			var json = JSON.new()
-			var error = json.parse(message)
-			if error == OK:
-				var data = json.get_data()
-				if data.has("payload") and data.payload.has("Pong"):
-					network_debug.add_message("Received pong - connection healthy")
+func _on_network_error(error: String):
+	network_debug.add_message("Network error: " + error)
+	network_debug.set_status("Error")
 
 func _on_exit_button_pressed():
 	print("Exit button pressed")
-	if websocket != null:
-		websocket.close()
+	if client_networking:
+		client_networking.disconnect()
 	if ping_timer != null:
 		ping_timer.stop()
 	get_tree().quit()
