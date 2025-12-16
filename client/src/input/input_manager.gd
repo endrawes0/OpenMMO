@@ -13,7 +13,7 @@ signal mouse_moved(relative: Vector2)
 
 # Input state
 var movement_input: Vector2 = Vector2.ZERO
-var jump_pressed: bool = false
+var jump_input_pressed: bool = false
 var mouse_captured: bool = false
 
 # Input configuration
@@ -42,8 +42,8 @@ func process_input(event):
 				KEY_D, KEY_RIGHT:
 					_update_movement_input(Vector2.RIGHT)
 				KEY_SPACE:
-					if not jump_pressed:
-						jump_pressed = true
+					if not jump_input_pressed:
+						jump_input_pressed = true
 						emit_signal("jump_pressed")
 				KEY_ESCAPE:
 					emit_signal("action_pressed", "escape")
@@ -63,7 +63,7 @@ func process_input(event):
 				KEY_D, KEY_RIGHT:
 					_update_movement_input(-Vector2.RIGHT)
 				KEY_SPACE:
-					jump_pressed = false
+					jump_input_pressed = false
 
 	elif event is InputEventMouseButton:
 		if event.pressed:
@@ -95,7 +95,7 @@ func get_movement_input() -> Vector2:
 	return movement_input
 
 func is_jump_pressed() -> bool:
-	return jump_pressed
+	return jump_input_pressed
 
 func capture_mouse():
 	if not mouse_captured:
@@ -118,5 +118,5 @@ func set_invert_y(invert: bool):
 
 func reset_input():
 	movement_input = Vector2.ZERO
-	jump_pressed = false
+	jump_input_pressed = false
 	emit_signal("movement_input_changed", movement_input)

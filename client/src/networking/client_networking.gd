@@ -49,7 +49,7 @@ func connect_to_server(url: String) -> Error:
 	emit_signal("connected")
 	return OK
 
-func disconnect():
+func close_connection():
 	if websocket:
 		websocket.close()
 	websocket = null
@@ -152,7 +152,7 @@ func _handle_error(error: Dictionary):
 func get_connection_state() -> ConnectionState:
 	return connection_state
 
-func is_connected() -> bool:
+func is_connection_active() -> bool:
 	return connection_state == ConnectionState.CONNECTED
 
 func get_session_id() -> String:

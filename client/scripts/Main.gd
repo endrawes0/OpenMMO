@@ -83,12 +83,8 @@ func _connect_to_server(url):
 	add_child(ping_timer)
 	ping_timer.start()
 
-func _process(delta):
-	if client_networking:
-		client_networking.poll()
-
 func _send_ping():
-	if client_networking and client_networking.is_connected():
+	if client_networking and client_networking.is_connection_active():
 		var ping_payload = {
 			"Ping": {
 				"timestamp": Time.get_unix_time_from_system() * 1000
@@ -96,6 +92,10 @@ func _send_ping():
 		}
 		client_networking.send_message(ping_payload)
 		network_debug.add_message("Sent ping")
+	else:
+		# Stop ping timer if not connected
+		if ping_timer:
+			ping_timer.stop()
 
 # Network signal handlers
 func _on_network_connected():
@@ -105,7 +105,7 @@ func _on_network_connected():
 func _on_network_disconnected():
 	network_debug.set_status("Disconnected")
 	network_debug.add_message("WebSocket disconnected")
-	if ping_timer != null:
+	if ping_timer:
 		ping_timer.stop()
 
 func _on_network_message_received(message: Dictionary):
@@ -126,7 +126,7 @@ func _on_network_error(error: String):
 func _on_exit_button_pressed():
 	print("Exit button pressed")
 	if client_networking:
-		client_networking.disconnect()
-	if ping_timer != null:
+		client_networking.close_connection()
+	if ping_timer:
 		ping_timer.stop()
 	get_tree().quit()
