@@ -177,9 +177,6 @@ func _on_cancel_create_pressed():
 	ui_state_manager.go_to_character_select()
 
 func _connect_and_authenticate(url: String, username: String, password: String, is_register: bool):
-	if client_networking and client_networking.is_connection_active():
-		client_networking.close_connection()
-
 	ui_state_manager.go_to_loading()
 	$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Connecting..."
 	network_debug.set_status("Connecting...")

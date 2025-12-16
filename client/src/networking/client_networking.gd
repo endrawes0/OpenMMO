@@ -38,9 +38,13 @@ func _init():
 	pass
 
 func connect_to_server(url: String) -> Error:
-	if connection_state != ConnectionState.DISCONNECTED:
-		push_error("Already connected or connecting")
-		return ERR_ALREADY_IN_USE
+	# Always close any existing connection first
+	if websocket:
+		websocket.close()
+		websocket = null
+		connection_state = ConnectionState.DISCONNECTED
+		session_id = ""
+		player_id = 0
 
 	connection_state = ConnectionState.CONNECTING
 	websocket = WebSocketPeer.new()
