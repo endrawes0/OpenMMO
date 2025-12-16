@@ -264,6 +264,70 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                             }
                         }
+                        Payload::AuthRequest(auth) => {
+                            // Handle authentication request
+                            let auth_result = if auth.character_name.is_some() {
+                                // This is a login request (character_name is provided for login)
+                                state.account_service.authenticate(&auth.username, &auth.password_hash).await
+                            } else {
+                                // This is a registration request (no character_name means register)
+                                // For registration, we need an email, but the client doesn't provide one
+                                // For MVP, we'll treat this as login and auto-create account if it doesn't exist
+                                match state.account_service.authenticate(&auth.username, &auth.password_hash).await {
+                                    Ok(account) => Ok(account),
+                                    Err(_) => {
+                                        // Try to register the account
+                                        state.account_service.register(
+                                            auth.username.clone(),
+                                            format!("{}@openmmo.local", auth.username), // Auto-generate email
+                                            auth.password_hash.clone(),
+                                        ).await
+                                    }
+                                }
+                            };
+
+                            let auth_response = match auth_result {
+                                Ok(account) => {
+                                    // Convert Uuid to u64 for player_id (temporary solution)
+                                    let player_id_u64 = account.id.as_u128() as u64;
+
+                                    // Update session with account info
+                                    state.session_store.authenticate_session(&session_id, player_id_u64, 0).await;
+
+                                    network::messages::AuthResponse {
+                                        success: true,
+                                        session_token: Some(session_id.to_string()),
+                                        message: "Authentication successful".to_string(),
+                                        player_id: Some(player_id_u64),
+                                        character_id: None, // Will be set when character is selected
+                                    }
+                                }
+                                Err(e) => {
+                                    network::messages::AuthResponse {
+                                        success: false,
+                                        session_token: None,
+                                        message: format!("Authentication failed: {:?}", e),
+                                        player_id: None,
+                                        character_id: None,
+                                    }
+                                }
+                            };
+
+                            let response = Envelope {
+                                sequence_id: envelope.sequence_id,
+                                timestamp: SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_millis() as u64,
+                                payload: Payload::AuthResponse(auth_response),
+                            };
+
+                            if let Ok(json) = serde_json::to_string(&response) {
+                                if socket.send(Message::Text(json)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
                         Payload::HandshakeRequest(_) => {
                             // Already handled handshake
                         }
