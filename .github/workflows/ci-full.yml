@@ -60,12 +60,6 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
 
-     - name: Prepare SQLx queries
-       run: |
-         cargo install sqlx-cli --no-default-features --features native-tls,postgres
-         cargo sqlx prepare --workspace
-       env:
-         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
 
 
 
@@ -74,9 +68,15 @@ jobs:
 
      - name: Run clippy
        run: cargo clippy --workspace --all-targets --all-features -- -A dead_code
+      env:
+        SQLX_OFFLINE: true
+       env:
+         SQLX_OFFLINE: true
 
     - name: Build workspace
       run: cargo build --workspace --verbose
+      env:
+        SQLX_OFFLINE: true
 
     - name: Run tests
       env:

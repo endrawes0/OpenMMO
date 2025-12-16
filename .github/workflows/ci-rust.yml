@@ -59,21 +59,19 @@ jobs:
          restore-keys: |
             ${{ runner.os }}-cargo-
 
-    - name: Run database migrations
-      run: |
-        cargo install sqlx-cli --no-default-features --features native-tls,postgres
-        sqlx migrate run --source migrations
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/openmmo_test
 
     - name: Check formatting
       run: cargo fmt --all -- --check
 
     - name: Run clippy
       run: cargo clippy --workspace --all-targets --all-features -- -A dead_code
+      env:
+        SQLX_OFFLINE: true
 
     - name: Build workspace
       run: cargo build --workspace --verbose
+      env:
+        SQLX_OFFLINE: true
 
     - name: Run tests
       env:
