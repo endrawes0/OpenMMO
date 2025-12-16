@@ -83,9 +83,8 @@ jobs:
 
     - name: Check SQLx migrations (offline mode)
       run: |
-        cd server
         # SQLx offline mode is enabled by default when DATABASE_URL is not set
-        DATABASE_URL="" cargo check
+        DATABASE_URL="" cargo check -p server
 
     - name: Security audit
       uses: actions-rs/audit-check@v1
