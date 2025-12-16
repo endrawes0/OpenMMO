@@ -78,6 +78,7 @@ func poll():
 		WebSocketPeer.STATE_OPEN:
 			if connection_state != ConnectionState.CONNECTED:
 				connection_state = ConnectionState.CONNECTED
+				print("DEBUG: Emitting connected signal")
 				emit_signal("connected")
 				_send_handshake()
 		WebSocketPeer.STATE_CLOSED:
@@ -105,7 +106,7 @@ func send_message(payload: Dictionary) -> Error:
 
 	var message = {
 		"sequence_id": sequence_id,
-		"timestamp": Time.get_unix_time_from_system() * 1000,
+		"timestamp": int(Time.get_unix_time_from_system() * 1000),
 		"payload": payload
 	}
 	sequence_id += 1
@@ -206,6 +207,7 @@ func get_player_id() -> int:
 
 # Authentication methods
 func send_login_request(username: String, password: String) -> Error:
+	print("DEBUG: send_login_request called for user:", username)
 	var auth_request = {
 		"AuthRequest": {
 			"username": username,
@@ -213,7 +215,9 @@ func send_login_request(username: String, password: String) -> Error:
 			"character_name": null
 		}
 	}
-	return send_message(auth_request)
+	var result = send_message(auth_request)
+	print("DEBUG: send_login_request result:", result)
+	return result
 
 func send_register_request(username: String, password: String) -> Error:
 	# For MVP, registration is handled the same as login (server creates account if it doesn't exist)

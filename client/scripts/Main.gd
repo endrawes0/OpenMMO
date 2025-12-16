@@ -44,6 +44,7 @@ var ui_fallback_timer = null
 var current_screen = null
 
 func _ready():
+	print("DEBUG: Main._ready() called")
 	# Initialize UI state
 	print("OpenMMO Client Started")
 	network_debug.set_status("Disconnected")
@@ -82,6 +83,7 @@ func _initialize_modules():
 	ui_state_manager = load("res://src/ui/ui_state_manager.gd").new()
 
 	# Connect signals
+	print("DEBUG: Connecting client networking signals")
 	client_networking.connect("connected", Callable(self, "_on_network_connected"))
 	client_networking.connect("disconnected", Callable(self, "_on_network_disconnected"))
 	client_networking.connect("message_received", Callable(self, "_on_network_message_received"))
@@ -93,6 +95,16 @@ func _initialize_modules():
 	client_networking.connect("character_selected", Callable(self, "_on_character_selected"))
 
 	ui_state_manager.connect("state_changed", Callable(self, "_on_ui_state_changed"))
+	print("DEBUG: Signal connections completed")
+
+func _process(_delta):
+	if client_networking:
+		client_networking.poll()
+		# Debug: Check connection state occasionally
+		if Engine.get_process_frames() % 60 == 0:  # Every second
+			var state = client_networking.get_connection_state()
+			if state != 0:  # Not DISCONNECTED
+				print("DEBUG: Client connection state:", state)
 
 func _on_login_button_pressed():
 	_perform_authentication(false)
@@ -272,7 +284,7 @@ func _send_ping():
 	if client_networking and client_networking.is_connection_active():
 		var ping_payload = {
 			"Ping": {
-				"timestamp": Time.get_unix_time_from_system() * 1000
+				"timestamp": int(Time.get_unix_time_from_system() * 1000)
 			}
 		}
 		client_networking.send_message(ping_payload)
@@ -284,6 +296,7 @@ func _send_ping():
 
 # Network signal handlers
 func _on_network_connected():
+	print("DEBUG: _on_network_connected() called")
 	# Stop connection timer since we connected successfully
 	if connection_timer:
 		connection_timer.stop()
@@ -301,14 +314,17 @@ func _on_network_connected():
 	auth_timer.start()
 
 	# Now that we're connected, send authentication request
+	print("DEBUG: Sending authentication request, is_register:", _is_register_attempt)
 	if _is_register_attempt:
 		var error = client_networking.send_register_request(_last_username, _last_password)
+		print("DEBUG: Register request sent, error:", error)
 		if error != OK:
 			_cleanup_timers()
 			_show_error("Failed to send registration request")
 			ui_state_manager.go_to_login()
 	else:
 		var error = client_networking.send_login_request(_last_username, _last_password)
+		print("DEBUG: Login request sent, error:", error)
 		if error != OK:
 			_cleanup_timers()
 			_show_error("Failed to send login request")
