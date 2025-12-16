@@ -52,14 +52,6 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Successfully connected to database");
 
-    // Run database migrations using our db module
-    info!("Running database migrations...");
-    db::run_migrations(&db_pool)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to run database migrations: {}", e))?;
-
-    info!("Database migrations completed successfully");
-
     // Test database connectivity
     db::check_connection(&db_pool)
         .await
