@@ -38,6 +38,9 @@ var ui_state_manager = null
 
 # UI state
 var ping_timer = null
+var connection_timer = null
+var auth_timer = null
+var ui_fallback_timer = null
 var current_screen = null
 
 func _ready():
@@ -176,14 +179,65 @@ func _on_cancel_create_pressed():
 	character_class.selected = 0
 	ui_state_manager.go_to_character_select()
 
+# Timeout handlers
+func _on_connection_timeout():
+	_cleanup_timers()
+	client_networking.close_connection()
+	ui_state_manager.go_to_login()
+	_show_error("Connection timeout - server may be unreachable")
+	network_debug.add_message("Connection attempt timed out")
+
+func _on_auth_timeout():
+	_cleanup_timers()
+	ui_state_manager.go_to_login()
+	_show_error("Authentication timeout - server not responding")
+	network_debug.add_message("Authentication request timed out")
+
+func _on_ui_timeout():
+	_cleanup_timers()
+	ui_state_manager.go_to_login()
+	_show_error("Operation timeout - please try again")
+	network_debug.add_message("UI operation timed out")
+
+# Timer cleanup utility
+func _cleanup_timers():
+	if connection_timer:
+		connection_timer.stop()
+		connection_timer.queue_free()
+		connection_timer = null
+
+	if auth_timer:
+		auth_timer.stop()
+		auth_timer.queue_free()
+		auth_timer = null
+
+	if ui_fallback_timer:
+		ui_fallback_timer.stop()
+		ui_fallback_timer.queue_free()
+		ui_fallback_timer = null
+
+	if ping_timer:
+		ping_timer.stop()
+		# Don't queue_free ping_timer as it might be reused
+
 func _connect_and_authenticate(url: String, username: String, password: String, is_register: bool):
 	ui_state_manager.go_to_loading()
 	$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Connecting..."
 	network_debug.set_status("Connecting...")
 	network_debug.add_message("Connecting to: " + url)
 
+	# Set up connection timeout (10 seconds)
+	if connection_timer:
+		connection_timer.stop()
+	connection_timer = Timer.new()
+	connection_timer.wait_time = 10.0
+	connection_timer.connect("timeout", Callable(self, "_on_connection_timeout"))
+	add_child(connection_timer)
+	connection_timer.start()
+
 	var error = client_networking.connect_to_server(url)
 	if error != OK:
+		_cleanup_timers()
 		ui_state_manager.go_to_login()
 		_show_error("Failed to connect: " + str(error))
 		network_debug.set_status("Connection Failed")
@@ -230,22 +284,38 @@ func _send_ping():
 
 # Network signal handlers
 func _on_network_connected():
+	# Stop connection timer since we connected successfully
+	if connection_timer:
+		connection_timer.stop()
+
 	network_debug.set_status("Connected")
 	network_debug.add_message("WebSocket connected successfully")
+
+	# Set up authentication timeout (15 seconds)
+	if auth_timer:
+		auth_timer.stop()
+	auth_timer = Timer.new()
+	auth_timer.wait_time = 15.0
+	auth_timer.connect("timeout", Callable(self, "_on_auth_timeout"))
+	add_child(auth_timer)
+	auth_timer.start()
 
 	# Now that we're connected, send authentication request
 	if _is_register_attempt:
 		var error = client_networking.send_register_request(_last_username, _last_password)
 		if error != OK:
+			_cleanup_timers()
 			_show_error("Failed to send registration request")
 			ui_state_manager.go_to_login()
 	else:
 		var error = client_networking.send_login_request(_last_username, _last_password)
 		if error != OK:
+			_cleanup_timers()
 			_show_error("Failed to send login request")
 			ui_state_manager.go_to_login()
 
 func _on_network_disconnected():
+	_cleanup_timers()
 	network_debug.set_status("Disconnected")
 	network_debug.add_message("WebSocket disconnected")
 	if ping_timer:
@@ -263,6 +333,7 @@ func _on_network_message_received(message: Dictionary):
 			network_debug.add_message("Handshake completed")
 
 func _on_network_error(error: String):
+	_cleanup_timers()
 	network_debug.add_message("Network error: " + error)
 	network_debug.set_status("Error")
 	ui_state_manager.set_error_message(error)
@@ -273,6 +344,7 @@ func _on_network_error(error: String):
 
 # Authentication signal handlers
 func _on_auth_successful(auth_data: Dictionary):
+	_cleanup_timers()
 	network_debug.add_message("Authentication successful")
 	ui_state_manager.go_to_character_select()
 
@@ -280,6 +352,7 @@ func _on_auth_successful(auth_data: Dictionary):
 	client_networking.request_character_list()
 
 func _on_auth_failed(reason: String):
+	_cleanup_timers()
 	network_debug.add_message("Authentication failed: " + reason)
 	ui_state_manager.set_error_message(reason)
 	ui_state_manager.go_to_login()
@@ -346,7 +419,20 @@ func _update_ui_for_state(state):
 		ui_state_manager.UIState.LOADING:
 			loading_panel.visible = true
 			$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Connecting..."
+			# Set up UI fallback timeout (20 seconds)
+			if ui_fallback_timer:
+				ui_fallback_timer.stop()
+			ui_fallback_timer = Timer.new()
+			ui_fallback_timer.wait_time = 20.0
+			ui_fallback_timer.connect("timeout", Callable(self, "_on_ui_timeout"))
+			add_child(ui_fallback_timer)
+			ui_fallback_timer.start()
 		ui_state_manager.UIState.CONNECTED:
+			# Stop UI fallback timer on successful connection
+			if ui_fallback_timer:
+				ui_fallback_timer.stop()
+				ui_fallback_timer.queue_free()
+				ui_fallback_timer = null
 			loading_panel.visible = true
 			$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Entering game world..."
 
