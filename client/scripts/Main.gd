@@ -51,14 +51,21 @@ func _ready():
 	# Initialize engine-agnostic modules
 	_initialize_modules()
 
-	# Connect UI signals
-	login_button.connect("pressed", Callable(self, "_on_login_button_pressed"))
-	register_button.connect("pressed", Callable(self, "_on_register_button_pressed"))
-	select_character_button.connect("pressed", Callable(self, "_on_select_character_pressed"))
-	create_character_button.connect("pressed", Callable(self, "_on_create_character_pressed"))
-	back_to_login_button.connect("pressed", Callable(self, "_on_back_to_login_pressed"))
-	create_character_btn.connect("pressed", Callable(self, "_on_create_character_confirm"))
-	cancel_create_button.connect("pressed", Callable(self, "_on_cancel_create_pressed"))
+	# Connect UI signals (only if not already connected)
+	if not login_button.is_connected("pressed", Callable(self, "_on_login_button_pressed")):
+		login_button.connect("pressed", Callable(self, "_on_login_button_pressed"))
+	if not register_button.is_connected("pressed", Callable(self, "_on_register_button_pressed")):
+		register_button.connect("pressed", Callable(self, "_on_register_button_pressed"))
+	if not select_character_button.is_connected("pressed", Callable(self, "_on_select_character_pressed")):
+		select_character_button.connect("pressed", Callable(self, "_on_select_character_pressed"))
+	if not create_character_button.is_connected("pressed", Callable(self, "_on_create_character_pressed")):
+		create_character_button.connect("pressed", Callable(self, "_on_create_character_pressed"))
+	if not back_to_login_button.is_connected("pressed", Callable(self, "_on_back_to_login_pressed")):
+		back_to_login_button.connect("pressed", Callable(self, "_on_back_to_login_pressed"))
+	if not create_character_btn.is_connected("pressed", Callable(self, "_on_create_character_confirm")):
+		create_character_btn.connect("pressed", Callable(self, "_on_create_character_confirm"))
+	if not cancel_create_button.is_connected("pressed", Callable(self, "_on_cancel_create_pressed")):
+		cancel_create_button.connect("pressed", Callable(self, "_on_cancel_create_pressed"))
 
 	# Initialize UI state
 	_update_ui_for_state(ui_state_manager.get_current_state())
