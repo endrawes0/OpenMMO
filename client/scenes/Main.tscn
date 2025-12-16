@@ -17,39 +17,198 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -150.0
-offset_right = 200.0
-offset_bottom = 150.0
+offset_left = -250.0
+offset_top = -200.0
+offset_right = 250.0
+offset_bottom = 200.0
 
 [node name="TitleLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
 text = "OpenMMO"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_font_sizes/font_size = 32
 
 [node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
 layout_mode = 2
 
-[node name="ConnectButton" type="Button" parent="VBoxContainer"]
+[node name="LoginPanel" type="Panel" parent="VBoxContainer"]
 layout_mode = 2
-text = "Connect to Server"
+size_flags_vertical = 3
 
-[node name="ServerAddress" type="LineEdit" parent="VBoxContainer"]
+[node name="LoginVBox" type="VBoxContainer" parent="VBoxContainer/LoginPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+
+[node name="ServerLabel" type="Label" parent="VBoxContainer/LoginPanel/LoginVBox"]
+layout_mode = 2
+text = "Server Address:"
+
+[node name="ServerAddress" type="LineEdit" parent="VBoxContainer/LoginPanel/LoginVBox"]
 layout_mode = 2
 placeholder_text = "ws://localhost:8080"
 
-[node name="Username" type="LineEdit" parent="VBoxContainer"]
+[node name="UsernameLabel" type="Label" parent="VBoxContainer/LoginPanel/LoginVBox"]
 layout_mode = 2
-placeholder_text = "Username"
+text = "Username:"
 
-[node name="Password" type="LineEdit" parent="VBoxContainer"]
+[node name="Username" type="LineEdit" parent="VBoxContainer/LoginPanel/LoginVBox"]
 layout_mode = 2
-placeholder_text = "Password"
+placeholder_text = "Enter username"
+
+[node name="PasswordLabel" type="Label" parent="VBoxContainer/LoginPanel/LoginVBox"]
+layout_mode = 2
+text = "Password:"
+
+[node name="Password" type="LineEdit" parent="VBoxContainer/LoginPanel/LoginVBox"]
+layout_mode = 2
+placeholder_text = "Enter password"
 is_is_secret = true
 
-[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+[node name="ButtonHBox" type="HBoxContainer" parent="VBoxContainer/LoginPanel/LoginVBox"]
 layout_mode = 2
+
+[node name="LoginButton" type="Button" parent="VBoxContainer/LoginPanel/LoginVBox/ButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Login"
+
+[node name="RegisterButton" type="Button" parent="VBoxContainer/LoginPanel/LoginVBox/ButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Register"
+
+[node name="CharacterPanel" type="Panel" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CharacterVBox" type="VBoxContainer" parent="VBoxContainer/CharacterPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+
+[node name="CharacterTitle" type="Label" parent="VBoxContainer/CharacterPanel/CharacterVBox"]
+layout_mode = 2
+text = "Select Character"
+horizontal_alignment = 1
+
+[node name="CharacterList" type="ItemList" parent="VBoxContainer/CharacterPanel/CharacterVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CharacterButtonHBox" type="HBoxContainer" parent="VBoxContainer/CharacterPanel/CharacterVBox"]
+layout_mode = 2
+
+[node name="SelectCharacterButton" type="Button" parent="VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Play"
+
+[node name="CreateCharacterButton" type="Button" parent="VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Create New"
+
+[node name="BackToLoginButton" type="Button" parent="VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Back"
+
+[node name="CreatePanel" type="Panel" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CreateVBox" type="VBoxContainer" parent="VBoxContainer/CreatePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+
+[node name="CreateTitle" type="Label" parent="VBoxContainer/CreatePanel/CreateVBox"]
+layout_mode = 2
+text = "Create Character"
+horizontal_alignment = 1
+
+[node name="CharacterNameLabel" type="Label" parent="VBoxContainer/CreatePanel/CreateVBox"]
+layout_mode = 2
+text = "Character Name:"
+
+[node name="CharacterName" type="LineEdit" parent="VBoxContainer/CreatePanel/CreateVBox"]
+layout_mode = 2
+placeholder_text = "Enter character name"
+
+[node name="CharacterClassLabel" type="Label" parent="VBoxContainer/CreatePanel/CreateVBox"]
+layout_mode = 2
+text = "Character Class:"
+
+[node name="CharacterClass" type="OptionButton" parent="VBoxContainer/CreatePanel/CreateVBox"]
+layout_mode = 2
+item_count = 3
+selected = 0
+popup/item_0/text = "Warrior"
+popup/item_0/id = 0
+popup/item_1/text = "Mage"
+popup/item_1/id = 1
+popup/item_2/text = "Rogue"
+popup/item_2/id = 2
+
+[node name="CreateButtonHBox" type="HBoxContainer" parent="VBoxContainer/CreatePanel/CreateVBox"]
+layout_mode = 2
+
+[node name="CreateCharacterBtn" type="Button" parent="VBoxContainer/CreatePanel/CreateVBox/CreateButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Create"
+
+[node name="CancelCreateButton" type="Button" parent="VBoxContainer/CreatePanel/CreateVBox/CreateButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Cancel"
+
+[node name="LoadingPanel" type="Panel" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LoadingVBox" type="VBoxContainer" parent="VBoxContainer/LoadingPanel"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = 10.0
+offset_top = -25.0
+offset_right = -10.0
+offset_bottom = 25.0
+
+[node name="LoadingLabel" type="Label" parent="VBoxContainer/LoadingPanel/LoadingVBox"]
+layout_mode = 2
+text = "Connecting..."
+horizontal_alignment = 1
+
+[node name="ErrorLabel" type="Label" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
 
 [node name="ExitButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -95,5 +254,11 @@ layout_mode = 2
 text = "Messages: 0"
 autowrap_mode = 3
 
-[connection signal="pressed" from="VBoxContainer/ConnectButton" to="." method="_on_connect_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/LoginPanel/LoginVBox/ButtonHBox/LoginButton" to="." method="_on_login_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/LoginPanel/LoginVBox/ButtonHBox/RegisterButton" to="." method="_on_register_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox/SelectCharacterButton" to="." method="_on_select_character_pressed"]
+[connection signal="pressed" from="VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox/CreateCharacterButton" to="." method="_on_create_character_pressed"]
+[connection signal="pressed" from="VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox/BackToLoginButton" to="." method="_on_back_to_login_pressed"]
+[connection signal="pressed" from="VBoxContainer/CreatePanel/CreateVBox/CreateButtonHBox/CreateCharacterBtn" to="." method="_on_create_character_confirm"]
+[connection signal="pressed" from="VBoxContainer/CreatePanel/CreateVBox/CreateButtonHBox/CancelCreateButton" to="." method="_on_cancel_create_pressed"]
 [connection signal="pressed" from="VBoxContainer/ExitButton" to="." method="_on_exit_button_pressed"]

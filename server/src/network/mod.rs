@@ -9,7 +9,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct Session {
     pub id: Uuid,
-    pub player_id: Option<u64>,
+    pub account_id: Option<Uuid>,
+    pub player_id: Option<u64>, // For network protocol compatibility
     pub character_id: Option<u64>,
     pub authenticated: bool,
     pub connected_at: std::time::Instant,
@@ -42,6 +43,7 @@ impl SessionStore {
         let session_id = Uuid::new_v4();
         let session = Session {
             id: session_id,
+            account_id: None,
             player_id: None,
             character_id: None,
             authenticated: false,
@@ -68,9 +70,16 @@ impl SessionStore {
         sessions.remove(session_id);
     }
 
-    pub async fn authenticate_session(&self, session_id: &Uuid, player_id: u64, character_id: u64) {
+    pub async fn authenticate_session(
+        &self,
+        session_id: &Uuid,
+        account_id: Uuid,
+        player_id: u64,
+        character_id: u64,
+    ) {
         if let Some(mut session) = self.get_session(session_id).await {
             session.authenticated = true;
+            session.account_id = Some(account_id);
             session.player_id = Some(player_id);
             session.character_id = Some(character_id);
             self.update_session(session).await;
