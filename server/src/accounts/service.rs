@@ -161,8 +161,9 @@ impl AccountService {
         // Validate character name
         self.validate_character_name(&name)?;
 
-        // Validate character class
-        self.validate_character_class(&class)?;
+        // Validate character class (normalize to lowercase)
+        let normalized_class = class.to_lowercase();
+        self.validate_character_class(&normalized_class)?;
 
         // Check character limit (max 3 characters per account)
         let character_count = self.get_character_count(account_id).await?;
@@ -176,7 +177,7 @@ impl AccountService {
         }
 
         // Get class-specific starting stats
-        let (max_health, resource_type, max_resource) = self.get_class_starting_stats(&class)?;
+        let (max_health, resource_type, max_resource) = self.get_class_starting_stats(&normalized_class)?;
 
         // Create character
         let character = sqlx::query_as!(
@@ -191,7 +192,7 @@ impl AccountService {
             "#,
             account_id,
             name,
-            class,
+            normalized_class,
             max_health,
             max_health,
             resource_type,

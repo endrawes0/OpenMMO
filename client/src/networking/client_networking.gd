@@ -226,7 +226,9 @@ func send_register_request(username: String, password: String) -> Error:
 # Character management methods
 func request_character_list() -> Error:
 	var request = {
-		"CharacterListRequest": {}
+		"CharacterListRequest": {
+			"request": true
+		}
 	}
 	return send_message(request)
 

@@ -362,7 +362,6 @@ func _on_network_error(error: String):
 func _on_auth_successful(auth_data: Dictionary):
 	_cleanup_timers()
 	network_debug.add_message("Authentication successful")
-	ui_state_manager.go_to_character_select()
 
 	# Request character list
 	client_networking.request_character_list()
@@ -378,19 +377,17 @@ func _on_character_list_received(characters: Array):
 	network_debug.add_message("Received " + str(characters.size()) + " characters")
 	ui_state_manager.set_available_characters(characters)
 
-	if characters.is_empty():
-		# No characters, go to character creation
-		ui_state_manager.go_to_character_create()
-	else:
-		# Characters available, stay in character select
-		ui_state_manager.go_to_character_select()
+	# Always go to character select state first
+	ui_state_manager.go_to_character_select()
 
 func _on_character_created(character_data: Dictionary):
 	network_debug.add_message("Character created: " + character_data.get("name", "Unknown"))
-	ui_state_manager.go_to_character_select()
 
-	# Refresh character list
+	# Refresh character list first
 	client_networking.request_character_list()
+	
+	# Then go to character select state (which will populate the list when response arrives)
+	ui_state_manager.go_to_character_select()
 
 func _on_character_selected(character_data: Dictionary):
 	network_debug.add_message("Character selected: " + character_data.get("name", "Unknown"))

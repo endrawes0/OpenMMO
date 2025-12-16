@@ -431,7 +431,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                             }
                         }
-                        Payload::CharacterListRequest(_) => {
+                        Payload::CharacterListRequest(_req) => {
                             // Handle character list request
                             // Get account_id from session
                             let account_id = match state.session_store.get_session(&session_id).await {
