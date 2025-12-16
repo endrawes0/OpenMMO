@@ -3,21 +3,42 @@ extends Control
 # Main entry point for OpenMMO client
 # This script handles UI binding only - no business logic per AGENTS.md
 
-@onready var connect_button = $VBoxContainer/ConnectButton
-@onready var server_address = $VBoxContainer/ServerAddress
-@onready var username = $VBoxContainer/Username
-@onready var user_password = $VBoxContainer/Password
+@onready var login_button = $VBoxContainer/LoginPanel/LoginVBox/ButtonHBox/LoginButton
+@onready var register_button = $VBoxContainer/LoginPanel/LoginVBox/ButtonHBox/RegisterButton
+@onready var server_address = $VBoxContainer/LoginPanel/LoginVBox/ServerAddress
+@onready var username = $VBoxContainer/LoginPanel/LoginVBox/Username
+@onready var user_password = $VBoxContainer/LoginPanel/LoginVBox/Password
 @onready var exit_button = $VBoxContainer/ExitButton
 @onready var network_debug = $NetworkDebug
+
+# Character selection UI
+@onready var character_panel = $VBoxContainer/CharacterPanel
+@onready var character_list = $VBoxContainer/CharacterPanel/CharacterVBox/CharacterList
+@onready var select_character_button = $VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox/SelectCharacterButton
+@onready var create_character_button = $VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox/CreateCharacterButton
+@onready var back_to_login_button = $VBoxContainer/CharacterPanel/CharacterVBox/CharacterButtonHBox/BackToLoginButton
+
+# Character creation UI
+@onready var create_panel = $VBoxContainer/CreatePanel
+@onready var character_name = $VBoxContainer/CreatePanel/CreateVBox/CharacterName
+@onready var character_class = $VBoxContainer/CreatePanel/CreateVBox/CharacterClass
+@onready var create_character_btn = $VBoxContainer/CreatePanel/CreateVBox/CreateButtonHBox/CreateCharacterBtn
+@onready var cancel_create_button = $VBoxContainer/CreatePanel/CreateVBox/CreateButtonHBox/CancelCreateButton
+
+# Loading and error UI
+@onready var loading_panel = $VBoxContainer/LoadingPanel
+@onready var error_label = $VBoxContainer/ErrorLabel
 
 # Engine-agnostic modules
 var client_networking = null
 var game_state_manager = null
 var movement_system = null
 var input_manager = null
+var ui_state_manager = null
 
 # UI state
 var ping_timer = null
+var current_screen = null
 
 func _ready():
 	# Initialize UI state
@@ -30,58 +51,164 @@ func _ready():
 	# Initialize engine-agnostic modules
 	_initialize_modules()
 
+	# Connect UI signals
+	login_button.connect("pressed", Callable(self, "_on_login_button_pressed"))
+	register_button.connect("pressed", Callable(self, "_on_register_button_pressed"))
+	select_character_button.connect("pressed", Callable(self, "_on_select_character_pressed"))
+	create_character_button.connect("pressed", Callable(self, "_on_create_character_pressed"))
+	back_to_login_button.connect("pressed", Callable(self, "_on_back_to_login_pressed"))
+	create_character_btn.connect("pressed", Callable(self, "_on_create_character_confirm"))
+	cancel_create_button.connect("pressed", Callable(self, "_on_cancel_create_pressed"))
+
+	# Initialize UI state
+	_update_ui_for_state(ui_state_manager.get_current_state())
+
 func _initialize_modules():
 	# Load engine-agnostic modules
 	client_networking = load("res://src/networking/client_networking.gd").new()
 	game_state_manager = load("res://src/gamestate/game_state_manager.gd").new()
 	movement_system = load("res://src/movement/movement_system.gd").new()
 	input_manager = load("res://src/input/input_manager.gd").new()
+	ui_state_manager = load("res://src/ui/ui_state_manager.gd").new()
 
 	# Connect signals
 	client_networking.connect("connected", Callable(self, "_on_network_connected"))
 	client_networking.connect("disconnected", Callable(self, "_on_network_disconnected"))
 	client_networking.connect("message_received", Callable(self, "_on_network_message_received"))
 	client_networking.connect("connection_error", Callable(self, "_on_network_error"))
+	client_networking.connect("auth_successful", Callable(self, "_on_auth_successful"))
+	client_networking.connect("auth_failed", Callable(self, "_on_auth_failed"))
+	client_networking.connect("character_list_received", Callable(self, "_on_character_list_received"))
+	client_networking.connect("character_created", Callable(self, "_on_character_created"))
+	client_networking.connect("character_selected", Callable(self, "_on_character_selected"))
 
-func _on_connect_button_pressed():
-	# UI binding only - actual connection logic will be handled by engine-agnostic modules
+	ui_state_manager.connect("state_changed", Callable(self, "_on_ui_state_changed"))
+
+func _on_login_button_pressed():
+	_perform_authentication(false)
+
+func _on_register_button_pressed():
+	_perform_authentication(true)
+
+func _perform_authentication(is_register: bool):
 	var address = server_address.text
 	var user = username.text
 	var passw = user_password.text
 
 	if address.is_empty() or user.is_empty() or passw.is_empty():
-		print("Please fill in all connection fields")
-		network_debug.add_message("Error: Please fill in all fields")
+		_show_error("Please fill in all fields")
 		return
 
-	print("Connect button pressed - UI binding only")
+	print(("Register" if is_register else "Login") + " button pressed")
 	print("Server: ", address)
 	print("Username: ", user)
 
-	# Initialize connection using networking module
-	_connect_to_server(address)
+	# Clear any previous errors
+	_clear_error()
 
-func _connect_to_server(url):
-	if client_networking and client_networking.is_connected():
-		client_networking.disconnect()
+	# Store credentials for later use
+	ui_state_manager.set_last_username(user)
 
+	# Initialize connection and attempt authentication
+	_connect_and_authenticate(address, user, passw, is_register)
+
+func _on_select_character_pressed():
+	var selected_items = character_list.get_selected_items()
+	if selected_items.is_empty():
+		_show_error("Please select a character")
+		return
+
+	var selected_index = selected_items[0]
+	var characters = ui_state_manager.get_available_characters()
+	if selected_index >= characters.size():
+		_show_error("Invalid character selection")
+		return
+
+	var selected_character = characters[selected_index]
+	var character_id = selected_character.id
+
+	_clear_error()
+	ui_state_manager.go_to_loading()
+	network_debug.add_message("Selecting character: " + selected_character.name)
+
+	var error = client_networking.select_character(character_id)
+	if error != OK:
+		_show_error("Failed to select character")
+		ui_state_manager.go_to_character_select()
+
+func _on_create_character_pressed():
+	ui_state_manager.go_to_character_create()
+
+func _on_back_to_login_pressed():
+	ui_state_manager.go_to_login()
+
+func _on_create_character_confirm():
+	var name = character_name.text.strip_edges()
+	var class_option = character_class.get_selected_id()
+	var class_name = character_class.get_item_text(class_option)
+
+	if name.is_empty():
+		_show_error("Please enter a character name")
+		return
+
+	if name.length() < 3:
+		_show_error("Character name must be at least 3 characters")
+		return
+
+	_clear_error()
+	ui_state_manager.go_to_loading()
+	network_debug.add_message("Creating character: " + name + " (" + class_name + ")")
+
+	var error = client_networking.create_character(name, class_name)
+	if error != OK:
+		_show_error("Failed to create character")
+		ui_state_manager.go_to_character_create()
+
+func _on_cancel_create_pressed():
+	character_name.text = ""
+	character_class.selected = 0
+	ui_state_manager.go_to_character_select()
+
+func _connect_and_authenticate(url: String, username: String, password: String, is_register: bool):
+	if client_networking and client_networking.is_connection_active():
+		client_networking.close_connection()
+
+	ui_state_manager.go_to_loading()
+	$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Connecting..."
 	network_debug.set_status("Connecting...")
 	network_debug.add_message("Connecting to: " + url)
 
 	var error = client_networking.connect_to_server(url)
 	if error != OK:
-		network_debug.add_message("Failed to connect: " + str(error))
+		ui_state_manager.go_to_login()
+		_show_error("Failed to connect: " + str(error))
 		network_debug.set_status("Connection Failed")
 		return
 
 	# Set up ping timer
-	if ping_timer != null:
+	if ping_timer:
 		ping_timer.stop()
 	ping_timer = Timer.new()
 	ping_timer.wait_time = 5.0  # Ping every 5 seconds
 	ping_timer.connect("timeout", Callable(self, "_send_ping"))
 	add_child(ping_timer)
 	ping_timer.start()
+
+	# Store credentials for retry if needed
+	_last_server_url = url
+	_last_username = username
+	_last_password = password
+	_is_register_attempt = is_register
+
+func _retry_login():
+	if _last_server_url and _last_username and _last_password:
+		_connect_and_login(_last_server_url, _last_username, _last_password)
+
+# Stored credentials for retry
+var _last_server_url = ""
+var _last_username = ""
+var _last_password = ""
+var _is_register_attempt = false
 
 func _send_ping():
 	if client_networking and client_networking.is_connection_active():
@@ -101,6 +228,18 @@ func _send_ping():
 func _on_network_connected():
 	network_debug.set_status("Connected")
 	network_debug.add_message("WebSocket connected successfully")
+
+	# Now that we're connected, send authentication request
+	if _is_register_attempt:
+		var error = client_networking.send_register_request(_last_username, _last_password)
+		if error != OK:
+			_show_error("Failed to send registration request")
+			ui_state_manager.go_to_login()
+	else:
+		var error = client_networking.send_login_request(_last_username, _last_password)
+		if error != OK:
+			_show_error("Failed to send login request")
+			ui_state_manager.go_to_login()
 
 func _on_network_disconnected():
 	network_debug.set_status("Disconnected")
@@ -122,6 +261,118 @@ func _on_network_message_received(message: Dictionary):
 func _on_network_error(error: String):
 	network_debug.add_message("Network error: " + error)
 	network_debug.set_status("Error")
+	ui_state_manager.set_error_message(error)
+
+	# If we were in a loading state, go back to login
+	if ui_state_manager.get_current_state() == ui_state_manager.UIState.LOADING:
+		ui_state_manager.go_to_login()
+
+# Authentication signal handlers
+func _on_auth_successful(auth_data: Dictionary):
+	network_debug.add_message("Authentication successful")
+	ui_state_manager.go_to_character_select()
+
+	# Request character list
+	client_networking.request_character_list()
+
+func _on_auth_failed(reason: String):
+	network_debug.add_message("Authentication failed: " + reason)
+	ui_state_manager.set_error_message(reason)
+	ui_state_manager.go_to_login()
+
+# Character management signal handlers
+func _on_character_list_received(characters: Array):
+	network_debug.add_message("Received " + str(characters.size()) + " characters")
+	ui_state_manager.set_available_characters(characters)
+
+	if characters.is_empty():
+		# No characters, go to character creation
+		ui_state_manager.go_to_character_create()
+	else:
+		# Characters available, stay in character select
+		ui_state_manager.go_to_character_select()
+
+func _on_character_created(character_data: Dictionary):
+	network_debug.add_message("Character created: " + character_data.get("name", "Unknown"))
+	ui_state_manager.go_to_character_select()
+
+	# Refresh character list
+	client_networking.request_character_list()
+
+func _on_character_selected(character_data: Dictionary):
+	network_debug.add_message("Character selected: " + character_data.get("name", "Unknown"))
+	ui_state_manager.go_to_connected()
+
+	# Transition to game world
+	_enter_game_world(character_data)
+
+# UI state management
+func _on_ui_state_changed(from_state, to_state):
+	print("UI state changed: ", from_state, " -> ", to_state)
+	_update_ui_for_state(to_state)
+
+func _update_ui_for_state(state):
+	# Hide all panels first
+	var login_panel = $VBoxContainer/LoginPanel
+	var character_panel = $VBoxContainer/CharacterPanel
+	var create_panel = $VBoxContainer/CreatePanel
+	var loading_panel = $VBoxContainer/LoadingPanel
+	var error_label = $VBoxContainer/ErrorLabel
+
+	login_panel.visible = false
+	character_panel.visible = false
+	create_panel.visible = false
+	loading_panel.visible = false
+	error_label.visible = false
+
+	# Show appropriate panel based on state
+	match state:
+		ui_state_manager.UIState.LOGIN, ui_state_manager.UIState.REGISTER:
+			login_panel.visible = true
+			_clear_error()
+		ui_state_manager.UIState.CHARACTER_SELECT:
+			character_panel.visible = true
+			_populate_character_list()
+			_clear_error()
+		ui_state_manager.UIState.CHARACTER_CREATE:
+			create_panel.visible = true
+			character_name.text = ""
+			character_class.selected = 0
+			_clear_error()
+		ui_state_manager.UIState.LOADING:
+			loading_panel.visible = true
+			$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Connecting..."
+		ui_state_manager.UIState.CONNECTED:
+			loading_panel.visible = true
+			$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Entering game world..."
+
+func _populate_character_list():
+	character_list.clear()
+	var characters = ui_state_manager.get_available_characters()
+
+	for character in characters:
+		var display_text = character.name + " (Lv." + str(character.level) + " " + character.class + ")"
+		character_list.add_item(display_text)
+
+	if characters.is_empty():
+		character_list.add_item("No characters found - create one first")
+		select_character_button.disabled = true
+	else:
+		select_character_button.disabled = false
+
+func _show_error(message: String):
+	error_label.text = "Error: " + message
+	error_label.visible = true
+	network_debug.add_message("Error: " + message)
+
+func _clear_error():
+	error_label.visible = false
+	ui_state_manager.clear_error_message()
+
+func _enter_game_world(character_data: Dictionary):
+	network_debug.add_message("Entering game world...")
+	# TODO: Transition to GameWorld scene
+	# get_tree().change_scene_to_file("res://scenes/GameWorld.tscn")
 
 func _on_exit_button_pressed():
 	print("Exit button pressed")

@@ -5,10 +5,11 @@ func _init():
 
 	# Test loading modules
 	var modules = [
-		"res://src/networking/client_networking.gd",
-		"res://src/gamestate/game_state_manager.gd",
-		"res://src/movement/movement_system.gd",
-		"res://src/input/input_manager.gd"
+		"res://client/src/networking/client_networking.gd",
+		"res://client/src/gamestate/game_state_manager.gd",
+		"res://client/src/movement/movement_system.gd",
+		"res://client/src/input/input_manager.gd",
+		"res://client/src/ui/ui_state_manager.gd"
 	]
 
 	for path in modules:

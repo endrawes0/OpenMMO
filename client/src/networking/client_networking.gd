@@ -10,6 +10,11 @@ signal connected
 signal disconnected
 signal message_received(message: Dictionary)
 signal connection_error(error: String)
+signal auth_successful(auth_data: Dictionary)
+signal auth_failed(reason: String)
+signal character_list_received(characters: Array)
+signal character_created(character_data: Dictionary)
+signal character_selected(character_data: Dictionary)
 
 # Connection state
 enum ConnectionState {
@@ -128,6 +133,14 @@ func _process_incoming_message(message: Dictionary):
 
 		if payload.has("HandshakeResponse"):
 			_handle_handshake_response(payload.HandshakeResponse)
+		elif payload.has("AuthResponse"):
+			_handle_auth_response(payload.AuthResponse)
+		elif payload.has("CharacterListResponse"):
+			_handle_character_list_response(payload.CharacterListResponse)
+		elif payload.has("CharacterCreateResponse"):
+			_handle_character_create_response(payload.CharacterCreateResponse)
+		elif payload.has("CharacterSelectResponse"):
+			_handle_character_select_response(payload.CharacterSelectResponse)
 		elif payload.has("Pong"):
 			_handle_pong(payload.Pong)
 		elif payload.has("Error"):
@@ -145,6 +158,31 @@ func _handle_pong(pong: Dictionary):
 	# Calculate ping time if needed
 	pass
 
+func _handle_auth_response(response: Dictionary):
+	if response.success:
+		session_id = response.get("session_token", "")
+		player_id = response.get("player_id", 0)
+		emit_signal("auth_successful", response)
+	else:
+		emit_signal("auth_failed", response.get("message", "Authentication failed"))
+
+func _handle_character_list_response(response: Dictionary):
+	var characters = response.get("characters", [])
+	emit_signal("character_list_received", characters)
+
+func _handle_character_create_response(response: Dictionary):
+	if response.success and response.has("character"):
+		emit_signal("character_created", response.character)
+	else:
+		var error_msg = response.get("error_message", "Character creation failed")
+		emit_signal("connection_error", error_msg)
+
+func _handle_character_select_response(response: Dictionary):
+	if response.has("character") and response.character != null:
+		emit_signal("character_selected", response.character)
+	else:
+		emit_signal("connection_error", "Character selection failed")
+
 func _handle_error(error: Dictionary):
 	push_error("Server error: " + error.get("message", "Unknown error"))
 	emit_signal("connection_error", error.get("message", "Unknown error"))
@@ -160,3 +198,47 @@ func get_session_id() -> String:
 
 func get_player_id() -> int:
 	return player_id
+
+# Authentication methods
+func send_login_request(username: String, password: String) -> Error:
+	var auth_request = {
+		"AuthRequest": {
+			"username": username,
+			"password_hash": _hash_password(password),
+			"character_name": null
+		}
+	}
+	return send_message(auth_request)
+
+func send_register_request(username: String, password: String) -> Error:
+	# For MVP, registration is handled the same as login (server creates account if it doesn't exist)
+	return send_login_request(username, password)
+
+# Character management methods
+func request_character_list() -> Error:
+	var request = {
+		"CharacterListRequest": {}
+	}
+	return send_message(request)
+
+func create_character(name: String, character_class: String) -> Error:
+	var request = {
+		"CharacterCreateRequest": {
+			"name": name,
+			"class": character_class
+		}
+	}
+	return send_message(request)
+
+func select_character(character_id: int) -> Error:
+	var request = {
+		"CharacterSelectRequest": {
+			"character_id": character_id
+		}
+	}
+	return send_message(request)
+
+# Utility methods
+func _hash_password(password: String) -> String:
+	# For MVP, using simple hash. In production, use proper password hashing
+	return password.sha256_text()
