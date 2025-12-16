@@ -17,10 +17,3 @@ CREATE INDEX idx_character_stats_name ON character_stats(stat_name);
 CREATE TRIGGER update_character_stats_updated_at
     BEFORE UPDATE ON character_stats
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- migrate:down
-DROP TRIGGER IF EXISTS update_character_stats_updated_at ON character_stats;
-DROP INDEX IF EXISTS idx_character_stats_name;
-DROP INDEX IF EXISTS idx_character_stats_character_id;
-DROP INDEX IF EXISTS idx_character_stats_character_stat;
-DROP TABLE IF EXISTS character_stats;

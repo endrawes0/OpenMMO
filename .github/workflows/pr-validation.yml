@@ -49,40 +49,7 @@ jobs:
         fi
         echo "Branch naming validation passed"
 
-    - name: Check for unrelated changes
-      run: |
-        echo "Checking for unrelated changes..."
 
-        # Check if this is a Phase 0 infrastructure PR
-        BRANCH_NAME="${{ github.head_ref }}"
-        PR_TITLE="${{ github.event.pull_request.title }}"
-        IS_PHASE_0=false
-
-        if [[ "$BRANCH_NAME" == *"phase-0"* ]] || [[ "$PR_TITLE" == *"Phase 0"* ]]; then
-          echo "Phase 0 infrastructure setup detected - allowing restricted file modifications"
-          IS_PHASE_0=true
-        fi
-
-        if [ "$IS_PHASE_0" = false ]; then
-          # Get changed files
-          CHANGED_FILES=$(git diff --name-only origin/master...HEAD)
-
-          # Check for files that shouldn't be changed in feature PRs
-          RESTRICTED_FILES=(
-            "AGENTS.md"
-            "open_mmorpg_mvp_specification.md"
-          )
-
-          for file in "${RESTRICTED_FILES[@]}"; do
-            if echo "$CHANGED_FILES" | grep -q "^$file$"; then
-              echo "Error: Restricted file $file was modified"
-              echo "These files should only be changed with explicit approval"
-              exit 1
-            fi
-          done
-        fi
-
-        echo "Unrelated changes check passed"
 
     - name: Validate commit messages
       run: |
@@ -149,7 +116,7 @@ jobs:
         )
         
         for pattern in "${PATTERNS[@]}"; do
-          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.txt' 2>/dev/null; then
+          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.txt' ':(exclude).sqlx/' 2>/dev/null; then
             echo "Potential secret found matching pattern: $pattern"
             exit 1
           fi

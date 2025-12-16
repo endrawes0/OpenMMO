@@ -30,10 +30,10 @@ impl ItemRarity {
 /// Item binding rules
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ItemBinding {
-    None,           // Can be traded freely
-    BindOnPickup,   // Binds when picked up
-    BindOnEquip,    // Binds when equipped
-    Soulbound,      // Permanently bound to character
+    None,         // Can be traded freely
+    BindOnPickup, // Binds when picked up
+    BindOnEquip,  // Binds when equipped
+    Soulbound,    // Permanently bound to character
 }
 
 /// Equipment slots for items
@@ -59,21 +59,34 @@ pub enum EquipmentSlot {
 
 impl EquipmentSlot {
     pub fn is_weapon_slot(&self) -> bool {
-        matches!(self, EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged)
+        matches!(
+            self,
+            EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged
+        )
     }
 
     pub fn is_armor_slot(&self) -> bool {
-        matches!(self,
-            EquipmentSlot::Head | EquipmentSlot::Neck | EquipmentSlot::Shoulders |
-            EquipmentSlot::Chest | EquipmentSlot::Waist | EquipmentSlot::Legs |
-            EquipmentSlot::Feet | EquipmentSlot::Wrists | EquipmentSlot::Hands
+        matches!(
+            self,
+            EquipmentSlot::Head
+                | EquipmentSlot::Neck
+                | EquipmentSlot::Shoulders
+                | EquipmentSlot::Chest
+                | EquipmentSlot::Waist
+                | EquipmentSlot::Legs
+                | EquipmentSlot::Feet
+                | EquipmentSlot::Wrists
+                | EquipmentSlot::Hands
         )
     }
 
     pub fn is_jewelry_slot(&self) -> bool {
-        matches!(self,
-            EquipmentSlot::Finger1 | EquipmentSlot::Finger2 |
-            EquipmentSlot::Trinket1 | EquipmentSlot::Trinket2
+        matches!(
+            self,
+            EquipmentSlot::Finger1
+                | EquipmentSlot::Finger2
+                | EquipmentSlot::Trinket1
+                | EquipmentSlot::Trinket2
         )
     }
 }
@@ -81,10 +94,22 @@ impl EquipmentSlot {
 /// Item categories
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ItemCategory {
-    Weapon { weapon_type: WeaponType, damage: u32, speed: f32 },
-    Armor { armor_type: ArmorType, defense: u32 },
-    Consumable { consumable_type: ConsumableType, effect: ConsumableEffect },
-    Quest { quest_id: u32 },
+    Weapon {
+        weapon_type: WeaponType,
+        damage: u32,
+        speed: f32,
+    },
+    Armor {
+        armor_type: ArmorType,
+        defense: u32,
+    },
+    Consumable {
+        consumable_type: ConsumableType,
+        effect: ConsumableEffect,
+    },
+    Quest {
+        quest_id: u32,
+    },
     Miscellaneous,
 }
 
@@ -124,11 +149,26 @@ pub enum ConsumableType {
 /// Consumable effects
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConsumableEffect {
-    RestoreHealth { amount: u32 },
-    RestoreMana { amount: u32 },
-    RestoreBoth { health: u32, mana: u32 },
-    Buff { stat_buff: StatBuff, duration: u32 },
-    Teleport { zone_id: String, x: f32, y: f32, z: f32 },
+    RestoreHealth {
+        amount: u32,
+    },
+    RestoreMana {
+        amount: u32,
+    },
+    RestoreBoth {
+        health: u32,
+        mana: u32,
+    },
+    Buff {
+        stat_buff: StatBuff,
+        duration: u32,
+    },
+    Teleport {
+        zone_id: String,
+        x: f32,
+        y: f32,
+        z: f32,
+    },
 }
 
 /// Stat buffs for consumables

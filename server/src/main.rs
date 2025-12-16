@@ -1,5 +1,5 @@
-mod db;
 mod accounts;
+mod db;
 mod entities;
 mod equipment;
 mod inventory;
@@ -17,7 +17,7 @@ use axum::{
     Router,
 };
 use serde_json::json;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone)]
@@ -69,7 +69,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Create world state
     let world_state = std::sync::Arc::new(tokio::sync::RwLock::new(world::WorldState::new()));
-    info!("World state initialized with {} zones", world_state.read().await.zone_count());
+    info!(
+        "World state initialized with {} zones",
+        world_state.read().await.zone_count()
+    );
 
     // Create application state
     let session_store = network::SessionStore::new();
@@ -83,9 +86,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Start simulation loop in background
     let simulation_world_state = world_state.clone();
-    let simulation_session_store = session_store.clone();
     tokio::spawn(async move {
-        let mut simulation_loop = simulation::SimulationLoop::new(simulation_world_state, simulation_session_store);
+        let mut simulation_loop = simulation::SimulationLoop::new(simulation_world_state);
         simulation_loop.run().await;
     });
 
@@ -159,13 +161,18 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
     let player_id = {
         let mut world = state.world_state.write().await;
         let zone = world.get_zone_mut(1).unwrap(); // Starter zone
-        let player_entity_id = zone.entities.create_test_player(format!("Player_{}", session_id));
+        let player_entity_id = zone
+            .entities
+            .create_test_player(format!("Player_{}", session_id));
         world.add_player_to_starter_zone(player_entity_id);
         player_entity_id
     };
 
     // Update session with player ID
-    state.session_store.authenticate_session(&session_id, 1, player_id).await; // Hardcode account_id = 1
+    state
+        .session_store
+        .authenticate_session(&session_id, 1, player_id)
+        .await; // Hardcode account_id = 1
 
     // Send handshake response
     let handshake_response = Envelope {
@@ -200,64 +207,71 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                 if let Ok(envelope) = serde_json::from_str::<Envelope>(&text) {
                     match &envelope.payload {
                         Payload::Ping(ping) => {
-                             // Respond with pong
-                             let pong_response = Envelope {
-                                 sequence_id: envelope.sequence_id,
-                                 timestamp: SystemTime::now()
-                                     .duration_since(UNIX_EPOCH)
-                                     .unwrap()
-                                     .as_millis() as u64,
-                                 payload: Payload::Pong(Pong {
-                                     timestamp: ping.timestamp,
-                                 }),
-                             };
+                            // Respond with pong
+                            let pong_response = Envelope {
+                                sequence_id: envelope.sequence_id,
+                                timestamp: SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_millis() as u64,
+                                payload: Payload::Pong(Pong {
+                                    timestamp: ping.timestamp,
+                                }),
+                            };
 
-                             if let Ok(json) = serde_json::to_string(&pong_response) {
-                                 if socket.send(Message::Text(json)).await.is_err() {
-                                     break;
-                                 }
-                             }
-                         }
-                         Payload::MovementIntent(movement) => {
-                             // Queue movement intent for processing
-                             if let Some(session) = state.session_store.get_session(&session_id).await {
-                                 let intent = network::MovementIntent {
-                                     player_id: session.player_id.unwrap_or(0),
-                                     target_x: movement.target_position.x,
-                                     target_y: movement.target_position.y,
-                                     target_z: movement.target_position.z,
-                                     speed_modifier: movement.speed_modifier,
-                                 };
+                            if let Ok(json) = serde_json::to_string(&pong_response) {
+                                if socket.send(Message::Text(json)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                        Payload::MovementIntent(movement) => {
+                            // Queue movement intent for processing
+                            if let Some(session) =
+                                state.session_store.get_session(&session_id).await
+                            {
+                                let intent = network::MovementIntent {
+                                    player_id: session.player_id.unwrap_or(0),
+                                    target_x: movement.target_position.x,
+                                    target_y: movement.target_position.y,
+                                    target_z: movement.target_position.z,
+                                    speed_modifier: movement.speed_modifier,
+                                };
 
-                                 {
-                                     let mut world = state.world_state.write().await;
-                                     world.queue_movement_intent(intent);
-                                 }
-                             }
-                         }
-                         Payload::CombatAction(combat) => {
-                             // Queue combat action for processing
-                             if let Some(session) = state.session_store.get_session(&session_id).await {
-                                 let action = match combat.action_type {
-                                     network::messages::ActionType::AutoAttack => {
-                                         crate::simulation::CombatAction::AutoAttack {
-                                             target_id: combat.target_entity_id,
-                                         }
-                                     }
-                                     network::messages::ActionType::Ability => {
-                                         crate::simulation::CombatAction::Ability {
-                                             ability_id: combat.ability_id,
-                                             target_id: combat.target_entity_id,
-                                         }
-                                     }
-                                 };
+                                {
+                                    let mut world = state.world_state.write().await;
+                                    world.queue_movement_intent(intent);
+                                }
+                            }
+                        }
+                        Payload::CombatAction(combat) => {
+                            // Queue combat action for processing
+                            if let Some(session) =
+                                state.session_store.get_session(&session_id).await
+                            {
+                                let action = match combat.action_type {
+                                    network::messages::ActionType::AutoAttack => {
+                                        crate::simulation::CombatAction::AutoAttack {
+                                            target_id: combat.target_entity_id,
+                                        }
+                                    }
+                                    network::messages::ActionType::Ability => {
+                                        crate::simulation::CombatAction::Ability {
+                                            ability_id: combat.ability_id,
+                                            target_id: combat.target_entity_id,
+                                        }
+                                    }
+                                };
 
-                                 {
-                                     let mut world = state.world_state.write().await;
-                                     world.queue_combat_action(session.player_id.unwrap_or(0), action);
-                                 }
-                             }
-                         }
+                                {
+                                    let mut world = state.world_state.write().await;
+                                    world.queue_combat_action(
+                                        session.player_id.unwrap_or(0),
+                                        action,
+                                    );
+                                }
+                            }
+                        }
                         Payload::HandshakeRequest(_) => {
                             // Already handled handshake
                         }

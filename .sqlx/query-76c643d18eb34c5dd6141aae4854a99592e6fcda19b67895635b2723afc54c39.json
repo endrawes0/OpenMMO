@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE characters\n            SET is_online = $1, last_saved_at = NOW()\n            WHERE id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "76c643d18eb34c5dd6141aae4854a99592e6fcda19b67895635b2723afc54c39"
+}

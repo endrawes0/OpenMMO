@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM characters\n            WHERE id = $1 AND account_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d361641eeb7a75b4eee5867d79157a6ac6e5929d6d28c9a3684bd2ca1ecdd0fa"
+}

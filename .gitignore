@@ -43,8 +43,8 @@ Thumbs.db
 logs/
 *.log
 
-# SQLx
-.sqlx/
+# SQLx (uncomment to commit .sqlx for local development)
+# .sqlx/
 
 # Docker
 docker-compose.override.yml

@@ -1,9 +1,9 @@
 //! Equipment system for managing equipped items
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::items::{EquipmentSlot, ItemId, ItemInstance, ItemDefinition, ItemStats, ItemRegistry};
 use crate::entities::EntityId;
+use crate::items::{EquipmentSlot, ItemDefinition, ItemInstance, ItemRegistry, ItemStats};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Equipment system for managing character equipment
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,15 +21,21 @@ impl Equipment {
     }
 
     /// Equip an item
-    pub fn equip_item(&mut self, item: ItemInstance, slot: EquipmentSlot, registry: &ItemRegistry) -> Result<(), EquipmentError> {
-        let definition = registry.get_item(item.definition_id)
+    pub fn equip_item(
+        &mut self,
+        item: ItemInstance,
+        slot: EquipmentSlot,
+        registry: &ItemRegistry,
+    ) -> Result<(), EquipmentError> {
+        let definition = registry
+            .get_item(item.definition_id)
             .ok_or(EquipmentError::InvalidItem)?;
 
         // Validate item can be equipped in this slot
         self.validate_equipment_slot(definition, slot)?;
 
         // Check if slot is already occupied
-        if let Some(existing_item) = self.slots.remove(&slot) {
+        if let Some(_existing_item) = self.slots.remove(&slot) {
             // Return existing item (would go to inventory in full implementation)
             // For now, we'll just replace it
         }
@@ -50,7 +56,10 @@ impl Equipment {
 
     /// Get all equipped items
     pub fn get_all_equipped(&self) -> Vec<(EquipmentSlot, &ItemInstance)> {
-        self.slots.iter().map(|(slot, item)| (*slot, item)).collect()
+        self.slots
+            .iter()
+            .map(|(slot, item)| (*slot, item))
+            .collect()
     }
 
     /// Calculate total stats from all equipped items
@@ -73,9 +82,12 @@ impl Equipment {
 
     /// Get equipment durability status
     pub fn get_durability_status(&self) -> Vec<(EquipmentSlot, f32)> {
-        self.slots.iter()
+        self.slots
+            .iter()
             .filter_map(|(slot, item)| {
-                item.durability.as_ref().map(|dur| (*slot, dur.durability_percentage()))
+                item.durability
+                    .as_ref()
+                    .map(|dur| (*slot, dur.durability_percentage()))
             })
             .collect()
     }
@@ -90,7 +102,11 @@ impl Equipment {
     }
 
     /// Validate that an item can be equipped in a specific slot
-    fn validate_equipment_slot(&self, definition: &ItemDefinition, slot: EquipmentSlot) -> Result<(), EquipmentError> {
+    fn validate_equipment_slot(
+        &self,
+        definition: &ItemDefinition,
+        slot: EquipmentSlot,
+    ) -> Result<(), EquipmentError> {
         match &definition.category {
             crate::items::ItemCategory::Weapon { .. } => {
                 if !slot.is_weapon_slot() {
@@ -121,23 +137,20 @@ impl Equipment {
     pub fn get_weapon_damage(&self, registry: &ItemRegistry) -> Option<(u32, f32)> {
         self.get_equipped_item(EquipmentSlot::MainHand)
             .and_then(|item| registry.get_item(item.definition_id))
-            .and_then(|def| {
-                match &def.category {
-                    crate::items::ItemCategory::Weapon { damage, speed, .. } => Some((*damage, *speed)),
-                    _ => None,
-                }
+            .and_then(|def| match &def.category {
+                crate::items::ItemCategory::Weapon { damage, speed, .. } => Some((*damage, *speed)),
+                _ => None,
             })
     }
 
     /// Get armor defense value
     pub fn get_armor_value(&self, registry: &ItemRegistry) -> u32 {
-        self.slots.values()
+        self.slots
+            .values()
             .filter_map(|item| registry.get_item(item.definition_id))
-            .filter_map(|def| {
-                match &def.category {
-                    crate::items::ItemCategory::Armor { defense, .. } => Some(*defense),
-                    _ => None,
-                }
+            .filter_map(|def| match &def.category {
+                crate::items::ItemCategory::Armor { defense, .. } => Some(*defense),
+                _ => None,
             })
             .sum()
     }

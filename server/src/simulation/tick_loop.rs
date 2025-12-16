@@ -3,11 +3,9 @@
 //! This module implements the 20 Hz game simulation loop that
 //! updates all game systems each tick.
 
-use std::time::{Duration, Instant};
-use tokio::time;
-use tracing::info;
 use crate::world::WorldState;
-use crate::network::SessionStore;
+use std::time::Duration;
+use tracing::info;
 
 /// Target ticks per second for the simulation
 const TARGET_TPS: f64 = 20.0;
@@ -16,18 +14,13 @@ const TICK_DURATION: Duration = Duration::from_micros((1_000_000.0 / TARGET_TPS)
 /// Main simulation loop
 pub struct SimulationLoop {
     world_state: std::sync::Arc<tokio::sync::RwLock<WorldState>>,
-    session_store: std::sync::Arc<tokio::sync::RwLock<SessionStore>>,
     running: bool,
 }
 
 impl SimulationLoop {
-    pub fn new(
-        world_state: std::sync::Arc<tokio::sync::RwLock<WorldState>>,
-        session_store: std::sync::Arc<tokio::sync::RwLock<SessionStore>>,
-    ) -> Self {
+    pub fn new(world_state: std::sync::Arc<tokio::sync::RwLock<WorldState>>) -> Self {
         Self {
             world_state,
-            session_store,
             running: false,
         }
     }

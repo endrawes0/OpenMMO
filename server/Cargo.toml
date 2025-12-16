@@ -26,3 +26,6 @@ rand = "0.8"
 
 [build-dependencies]
 prost-build = "0.13"
+
+[package.metadata.cargo-machete]
+ignored = ["prost", "tokio-tungstenite", "tower", "tower-http"]

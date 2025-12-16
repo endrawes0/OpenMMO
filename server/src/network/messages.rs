@@ -211,7 +211,6 @@ pub enum EntityEffect {
 }
 
 /// Character management messages
-
 /// Request character list for account
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterListRequest;
@@ -282,7 +281,6 @@ pub struct CharacterDeleteResponse {
 }
 
 /// Inventory management messages
-
 /// Request inventory contents
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InventoryRequest;
@@ -344,7 +342,7 @@ pub struct EquipmentResponse {
 /// Equipment slot information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EquipmentSlot {
-    pub slot_type: u32,  // EquipmentSlot enum value
+    pub slot_type: u32, // EquipmentSlot enum value
     pub item: ItemInstance,
 }
 
@@ -357,7 +355,8 @@ pub struct ItemEquipRequest {
 }
 
 /// Equip/unequip item response
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemEquipResponse {
-   pub success: bool,
-   pub error_message: Option<String>,
+    pub success: bool,
+    pub error_message: Option<String>,
 }

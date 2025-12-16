@@ -23,7 +23,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     echo "Detected Linux"
     
     # Try to download Godot binary
-    GODOT_VERSION="4.3"
+    GODOT_VERSION="4.5.1"
     GODOT_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
     
     echo "Downloading Godot ${GODOT_VERSION}..."

@@ -4,14 +4,18 @@
 //! attack validation, damage calculation, and death handling.
 
 use crate::entities::{Entity, EntityId};
-use crate::entities::components::{Health, Combat};
 use crate::world::WorldState;
 
 /// Combat action types
 #[derive(Debug, Clone)]
 pub enum CombatAction {
-    AutoAttack { target_id: EntityId },
-    Ability { ability_id: u32, target_id: EntityId },
+    AutoAttack {
+        target_id: EntityId,
+    },
+    Ability {
+        ability_id: u32,
+        target_id: EntityId,
+    },
 }
 
 /// Combat result after processing an action
@@ -31,38 +35,44 @@ impl CombatSystem {
     pub fn process_combat_action(
         world_state: &mut WorldState,
         attacker_id: EntityId,
-        action: CombatAction
+        action: CombatAction,
     ) -> CombatResult {
         // Get attacker's zone
         let zone_id = match world_state.get_player_zone_id(attacker_id) {
             Some(id) => id,
-            None => return CombatResult {
-                success: false,
-                damage_dealt: 0,
-                target_killed: false,
-                error_message: Some("Attacker not in any zone".to_string()),
-            },
+            None => {
+                return CombatResult {
+                    success: false,
+                    damage_dealt: 0,
+                    target_killed: false,
+                    error_message: Some("Attacker not in any zone".to_string()),
+                }
+            }
         };
 
         let zone = match world_state.get_zone_mut(zone_id) {
             Some(z) => z,
-            None => return CombatResult {
-                success: false,
-                damage_dealt: 0,
-                target_killed: false,
-                error_message: Some("Zone not found".to_string()),
-            },
+            None => {
+                return CombatResult {
+                    success: false,
+                    damage_dealt: 0,
+                    target_killed: false,
+                    error_message: Some("Zone not found".to_string()),
+                }
+            }
         };
 
         // Get attacker entity
         let attacker = match zone.entities.get_entity(attacker_id) {
             Some(e) => e,
-            None => return CombatResult {
-                success: false,
-                damage_dealt: 0,
-                target_killed: false,
-                error_message: Some("Attacker entity not found".to_string()),
-            },
+            None => {
+                return CombatResult {
+                    success: false,
+                    damage_dealt: 0,
+                    target_killed: false,
+                    error_message: Some("Attacker entity not found".to_string()),
+                }
+            }
         };
 
         // Validate attacker can attack
@@ -76,18 +86,22 @@ impl CombatSystem {
         }
 
         let target_id = match action {
-            CombatAction::AutoAttack { target_id } | CombatAction::Ability { target_id, .. } => target_id,
+            CombatAction::AutoAttack { target_id } | CombatAction::Ability { target_id, .. } => {
+                target_id
+            }
         };
 
         // Get target entity
         let target = match zone.entities.get_entity(target_id) {
             Some(e) => e,
-            None => return CombatResult {
-                success: false,
-                damage_dealt: 0,
-                target_killed: false,
-                error_message: Some("Target entity not found".to_string()),
-            },
+            None => {
+                return CombatResult {
+                    success: false,
+                    damage_dealt: 0,
+                    target_killed: false,
+                    error_message: Some("Target entity not found".to_string()),
+                }
+            }
         };
 
         // Validate attack
@@ -102,7 +116,8 @@ impl CombatSystem {
 
         // Calculate and apply damage
         let damage = Self::calculate_damage(attacker, target, &action);
-        let target_killed = Self::apply_damage(zone.entities.get_entity_mut(target_id).unwrap(), damage);
+        let target_killed =
+            Self::apply_damage(zone.entities.get_entity_mut(target_id).unwrap(), damage);
 
         CombatResult {
             success: true,
@@ -113,7 +128,11 @@ impl CombatSystem {
     }
 
     /// Validate if an attack can be performed
-    fn validate_attack(attacker: &Entity, target: &Entity, action: &CombatAction) -> Result<(), String> {
+    fn validate_attack(
+        attacker: &Entity,
+        target: &Entity,
+        action: &CombatAction,
+    ) -> Result<(), String> {
         // Check if target is alive
         if !target.is_alive() {
             return Err("Target is already dead".to_string());
@@ -124,7 +143,10 @@ impl CombatSystem {
         let distance = attacker.distance_to(target);
 
         if distance > attack_range {
-            return Err(format!("Target is out of range ({} > {})", distance, attack_range));
+            return Err(format!(
+                "Target is out of range ({} > {})",
+                distance, attack_range
+            ));
         }
 
         // Check attack cooldown
@@ -133,13 +155,13 @@ impl CombatSystem {
         let time_since_last_attack = current_time - combat.last_attack_time;
 
         match action {
-            CombatAction::AutoAttack => {
+            CombatAction::AutoAttack { .. } => {
                 let attack_cooldown = 1.0 / combat.attack_speed;
-                if time_since_last_attack < attack_cooldown {
+                if time_since_last_attack < attack_cooldown as f64 {
                     return Err("Attack is on cooldown".to_string());
                 }
             }
-            CombatAction::Ability { ability_id, .. } => {
+            CombatAction::Ability { ability_id: _, .. } => {
                 // TODO: Check ability cooldowns
                 // For now, allow abilities
             }
@@ -159,8 +181,8 @@ impl CombatSystem {
         let target_combat = target.combat.as_ref();
 
         let base_damage = match action {
-            CombatAction::AutoAttack => attacker_combat.attack_power,
-            CombatAction::Ability { ability_id, .. } => {
+            CombatAction::AutoAttack { .. } => attacker_combat.attack_power,
+            CombatAction::Ability { ability_id: _, .. } => {
                 // TODO: Look up ability damage from data
                 // For now, use a simple formula
                 attacker_combat.attack_power * 2
@@ -204,7 +226,10 @@ impl CombatSystem {
     }
 
     /// Get entities that can be attacked by a given entity
-    pub fn get_attackable_entities(world_state: &WorldState, attacker_id: EntityId) -> Vec<EntityId> {
+    pub fn get_attackable_entities(
+        world_state: &WorldState,
+        attacker_id: EntityId,
+    ) -> Vec<EntityId> {
         let zone = match world_state.get_player_zone(attacker_id) {
             Some(z) => z,
             None => return Vec::new(),
@@ -215,7 +240,8 @@ impl CombatSystem {
             None => return Vec::new(),
         };
 
-        zone.entities.get_all_entities()
+        zone.entities
+            .get_all_entities()
             .into_iter()
             .filter(|target| Self::can_attack_entity(attacker, target))
             .map(|e| e.id)

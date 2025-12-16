@@ -12,9 +12,9 @@ pub struct ItemStats {
     pub attack_power: i32,
     pub health: i32,
     pub mana: i32,
-    pub critical_chance: f32,  // Percentage (0.0 - 1.0)
-    pub haste: f32,            // Percentage (0.0 - 1.0)
-    pub movement_speed: f32,   // Percentage (0.0 - 1.0)
+    pub critical_chance: f32, // Percentage (0.0 - 1.0)
+    pub haste: f32,           // Percentage (0.0 - 1.0)
+    pub movement_speed: f32,  // Percentage (0.0 - 1.0)
 }
 
 impl ItemStats {
@@ -62,16 +62,16 @@ impl ItemStats {
 
     /// Check if stats are all zero (empty item)
     pub fn is_empty(&self) -> bool {
-        self.strength == 0 &&
-        self.agility == 0 &&
-        self.intelligence == 0 &&
-        self.defense == 0 &&
-        self.attack_power == 0 &&
-        self.health == 0 &&
-        self.mana == 0 &&
-        (self.critical_chance - 0.0).abs() < f32::EPSILON &&
-        (self.haste - 0.0).abs() < f32::EPSILON &&
-        (self.movement_speed - 0.0).abs() < f32::EPSILON
+        self.strength == 0
+            && self.agility == 0
+            && self.intelligence == 0
+            && self.defense == 0
+            && self.attack_power == 0
+            && self.health == 0
+            && self.mana == 0
+            && (self.critical_chance - 0.0).abs() < f32::EPSILON
+            && (self.haste - 0.0).abs() < f32::EPSILON
+            && (self.movement_speed - 0.0).abs() < f32::EPSILON
     }
 }
 
@@ -79,7 +79,7 @@ impl ItemStats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemRequirements {
     pub level: u32,
-    pub class: Option<String>,  // Specific class requirement
+    pub class: Option<String>, // Specific class requirement
     pub strength: u32,
     pub agility: u32,
     pub intelligence: u32,

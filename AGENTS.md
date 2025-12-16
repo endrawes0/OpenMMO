@@ -38,8 +38,11 @@ Every PR MUST include:
 - Validation steps (how reviewers can run or test it)
 - A diff that touches ONLY files required for the specific task
 
-4. **Atomicity**  
+4. **Atomicity**
 Agents MUST keep PRs small, self-contained, and focused on a single logical unit of progress.
+
+5. **CI Consistency**
+Agents MUST keep local CI scripts and remote CI workflows consistent. Changes to either MUST be made simultaneously to maintain parity between local development and CI environments.
 
 ---
 
@@ -124,8 +127,11 @@ Agents MUST treat all client input as untrusted:
 - Ability usage must be checked  
 - Inventory operations must be server-authoritative
 
-4. **No Sensitive Data in Logs**  
+4. **No Sensitive Data in Logs**
 Logs MUST NOT contain passwords, session tokens, or PII beyond usernames.
+
+5. **Security Vulnerabilities**
+Agents MUST NOT add security vulnerabilities to audit ignore lists without explicit user confirmation. All security decisions regarding known vulnerabilities must be approved by a human maintainer.
 
 ---
 

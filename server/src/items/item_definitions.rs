@@ -1,7 +1,9 @@
 //! Item definitions and templates
 
+use crate::items::{
+    ItemBinding, ItemCategory, ItemDurability, ItemId, ItemRarity, ItemRequirements, ItemStats,
+};
 use serde::{Deserialize, Serialize};
-use crate::items::{ItemId, ItemRarity, ItemBinding, ItemCategory, ItemStats, ItemRequirements, ItemDurability};
 
 /// Complete item definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,8 +18,8 @@ pub struct ItemDefinition {
     pub stats: ItemStats,
     pub requirements: ItemRequirements,
     pub durability: Option<ItemDurability>,
-    pub value: u32,  // Gold value
-    pub stack_size: u32,  // How many can stack in one slot
+    pub value: u32,      // Gold value
+    pub stack_size: u32, // How many can stack in one slot
     pub is_sellable: bool,
     pub is_tradeable: bool,
 }
@@ -92,7 +94,12 @@ impl ItemDefinition {
         self
     }
 
-    pub fn can_equip(&self, character_level: u32, character_class: &str, character_stats: &ItemStats) -> bool {
+    pub fn can_equip(
+        &self,
+        character_level: u32,
+        character_class: &str,
+        character_stats: &ItemStats,
+    ) -> bool {
         // Check level requirement
         if character_level < self.requirements.level {
             return false;
@@ -106,9 +113,10 @@ impl ItemDefinition {
         }
 
         // Check stat requirements
-        if character_stats.strength < self.requirements.strength as i32 ||
-           character_stats.agility < self.requirements.agility as i32 ||
-           character_stats.intelligence < self.requirements.intelligence as i32 {
+        if character_stats.strength < self.requirements.strength as i32
+            || character_stats.agility < self.requirements.agility as i32
+            || character_stats.intelligence < self.requirements.intelligence as i32
+        {
             return false;
         }
 
@@ -123,7 +131,7 @@ pub struct ItemInstance {
     pub quantity: u32,
     pub durability: Option<ItemDurability>,
     pub is_bound: bool,
-    pub creator: Option<String>,  // For crafted items
+    pub creator: Option<String>, // For crafted items
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -149,9 +157,9 @@ impl ItemInstance {
     }
 
     pub fn is_stackable(&self, other: &ItemInstance) -> bool {
-        self.definition_id == other.definition_id &&
-        self.is_bound == other.is_bound &&
-        self.creator == other.creator
+        self.definition_id == other.definition_id
+            && self.is_bound == other.is_bound
+            && self.creator == other.creator
     }
 
     pub fn can_stack_more(&self, definition: &ItemDefinition) -> bool {
@@ -203,7 +211,7 @@ impl ItemRegistry {
                 })
                 .with_requirements(ItemRequirements::new(1))
                 .with_durability(ItemDurability::new(50))
-                .with_value(10)
+                .with_value(10),
         );
 
         self.register_item(
@@ -220,7 +228,7 @@ impl ItemRegistry {
                 })
                 .with_requirements(ItemRequirements::new(5))
                 .with_durability(ItemDurability::new(75))
-                .with_value(50)
+                .with_value(50),
         );
 
         // Armor
@@ -236,7 +244,7 @@ impl ItemRegistry {
                 })
                 .with_requirements(ItemRequirements::new(1))
                 .with_durability(ItemDurability::new(30))
-                .with_value(5)
+                .with_value(5),
         );
 
         // Consumables
@@ -247,7 +255,7 @@ impl ItemRegistry {
                     effect: crate::items::ConsumableEffect::RestoreHealth { amount: 50 },
                 })
                 .with_value(25)
-                .with_stack_size(20)
+                .with_stack_size(20),
         );
 
         self.register_item(
@@ -257,7 +265,7 @@ impl ItemRegistry {
                     effect: crate::items::ConsumableEffect::RestoreMana { amount: 50 },
                 })
                 .with_value(25)
-                .with_stack_size(20)
+                .with_stack_size(20),
         );
     }
 }

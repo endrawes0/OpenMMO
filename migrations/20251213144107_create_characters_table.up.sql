@@ -1,3 +1,12 @@
+-- Ensure the update function exists (in case migration order issues)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- Create characters table
 CREATE TABLE characters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -35,14 +44,3 @@ CREATE INDEX idx_characters_updated_at ON characters(updated_at);
 CREATE TRIGGER update_characters_updated_at
     BEFORE UPDATE ON characters
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- migrate:down
-DROP TRIGGER IF EXISTS update_characters_updated_at ON characters;
-DROP INDEX IF EXISTS idx_characters_updated_at;
-DROP INDEX IF EXISTS idx_characters_is_online;
-DROP INDEX IF EXISTS idx_characters_zone_id;
-DROP INDEX IF EXISTS idx_characters_level;
-DROP INDEX IF EXISTS idx_characters_class;
-DROP INDEX IF EXISTS idx_characters_name;
-DROP INDEX IF EXISTS idx_characters_account_id;
-DROP TABLE IF EXISTS characters;
