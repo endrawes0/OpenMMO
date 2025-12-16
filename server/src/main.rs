@@ -19,6 +19,7 @@ use axum::{
 use serde_json::json;
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::Uuid;
 
 #[derive(Clone)]
 struct AppState {
@@ -163,8 +164,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
     // Update session with player ID
     state
         .session_store
-        .authenticate_session(&session_id, 1, player_id)
-        .await; // Hardcode account_id = 1
+        .authenticate_session(&session_id, Uuid::from_u128(1), player_id, 0)
+        .await; // Hardcode account_id = 1, character_id = 0
 
     // Send handshake response
     let handshake_response = Envelope {
@@ -288,11 +289,9 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
 
                             let auth_response = match auth_result {
                                 Ok(account) => {
-                                    // Convert Uuid to u64 for player_id (temporary solution)
-                                    let player_id_u64 = account.id.as_u128() as u64;
-
                                     // Update session with account info
-                                    state.session_store.authenticate_session(&session_id, player_id_u64, 0).await;
+                                    let player_id_u64 = account.id.as_u128() as u64;
+                                    state.session_store.authenticate_session(&session_id, account.id, player_id_u64, 0).await;
 
                                     network::messages::AuthResponse {
                                         success: true,
@@ -320,6 +319,110 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     .unwrap()
                                     .as_millis() as u64,
                                 payload: Payload::AuthResponse(auth_response),
+                            };
+
+                            if let Ok(json) = serde_json::to_string(&response) {
+                                if socket.send(Message::Text(json)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                        Payload::CharacterCreateRequest(create_req) => {
+                            // Handle character creation request
+                            // Check if session exists and is authenticated
+                            let session = if let Some(s) = state.session_store.get_session(&session_id).await {
+                                s
+                            } else {
+                                // Send error response - session not found
+                                let error_response = network::messages::CharacterCreateResponse {
+                                    success: false,
+                                    character: None,
+                                    error_message: Some("Session not found".to_string()),
+                                };
+
+                                let response = Envelope {
+                                    sequence_id: envelope.sequence_id,
+                                    timestamp: SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_millis() as u64,
+                                    payload: Payload::CharacterCreateResponse(error_response),
+                                };
+
+                                if let Ok(json) = serde_json::to_string(&response) {
+                                    let _ = socket.send(Message::Text(json)).await;
+                                }
+                                continue;
+                            };
+
+                            let account_id = if let Some(id) = session.account_id {
+                                id
+                            } else {
+                                // Send error response - not authenticated
+                                let error_response = network::messages::CharacterCreateResponse {
+                                    success: false,
+                                    character: None,
+                                    error_message: Some("Not authenticated".to_string()),
+                                };
+
+                                let response = Envelope {
+                                    sequence_id: envelope.sequence_id,
+                                    timestamp: SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_millis() as u64,
+                                    payload: Payload::CharacterCreateResponse(error_response),
+                                };
+
+                                if let Ok(json) = serde_json::to_string(&response) {
+                                    let _ = socket.send(Message::Text(json)).await;
+                                }
+                                continue;
+                            };
+
+                            let create_result = state.account_service.create_character(
+                                account_id,
+                                create_req.name.clone(),
+                                create_req.class.clone(),
+                            ).await;
+
+                            let create_response = match create_result {
+                                Ok(character) => {
+                                    network::messages::CharacterCreateResponse {
+                                        success: true,
+                                        character: Some(network::messages::CharacterInfo {
+                                            id: character.id.as_u128() as u64,
+                                            name: character.name,
+                                            class: character.class,
+                                            level: character.level as u32,
+                                            experience: character.experience as u64,
+                                            zone_id: character.zone_id,
+                                            health: character.health as u32,
+                                            max_health: character.max_health as u32,
+                                            resource_type: character.resource_type,
+                                            resource_value: character.resource_value as u32,
+                                            max_resource: character.max_resource as u32,
+                                            is_online: character.is_online,
+                                        }),
+                                        error_message: None,
+                                    }
+                                }
+                                Err(e) => {
+                                    network::messages::CharacterCreateResponse {
+                                        success: false,
+                                        character: None,
+                                        error_message: Some(format!("Character creation failed: {:?}", e)),
+                                    }
+                                }
+                            };
+
+                            let response = Envelope {
+                                sequence_id: envelope.sequence_id,
+                                timestamp: SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_millis() as u64,
+                                payload: Payload::CharacterCreateResponse(create_response),
                             };
 
                             if let Ok(json) = serde_json::to_string(&response) {
