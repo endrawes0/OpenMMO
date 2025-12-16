@@ -145,7 +145,7 @@ func _on_back_to_login_pressed():
 func _on_create_character_confirm():
 	var name = character_name.text.strip_edges()
 	var class_option = character_class.get_selected_id()
-	var class_name = character_class.get_item_text(class_option)
+	var selected_class_name = character_class.get_item_text(class_option)
 
 	if name.is_empty():
 		_show_error("Please enter a character name")
@@ -157,9 +157,9 @@ func _on_create_character_confirm():
 
 	_clear_error()
 	ui_state_manager.go_to_loading()
-	network_debug.add_message("Creating character: " + name + " (" + class_name + ")")
+	network_debug.add_message("Creating character: " + name + " (" + selected_class_name + ")")
 
-	var error = client_networking.create_character(name, class_name)
+	var error = client_networking.create_character(name, selected_class_name)
 	if error != OK:
 		_show_error("Failed to create character")
 		ui_state_manager.go_to_character_create()
