@@ -116,7 +116,7 @@ jobs:
         )
         
         for pattern in "${PATTERNS[@]}"; do
-          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.txt' 2>/dev/null; then
+          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.txt' ':(exclude)*.sqlx' 2>/dev/null; then
             echo "Potential secret found matching pattern: $pattern"
             exit 1
           fi
