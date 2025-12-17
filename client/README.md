@@ -39,26 +39,26 @@ Following AGENTS.md guidelines:
 
 ## Current Features
 
-- Basic main menu with connection UI (placeholder)
+- Login, registration, and character selection UI with create/select flows
+- Engine-agnostic networking, game state, input, movement, and UI modules
+- Transition from character selection into the initial zone scene
+- Third-person placeholder zone with terrain, spawn camp, and lighting pass
+- Player capsule with WASD movement, mouse-driven camera, and scroll zoom
 - Network debug overlay for monitoring connection status
-- Basic game world scene with placeholder player and environment
-- Input mappings for keyboard + mouse controls
-- Export presets for all target platforms
+- Export presets for Windows, Linux, and macOS
 
 ## Next Steps
 
 The client structure is ready for integration with:
-- Engine-agnostic networking modules
-- Protocol message handling
-- Server communication
-- Actual game logic implementation
+- Real authentication + character services backed by the Rust server
+- Authoritative world snapshots and entity replication
+- Combat, abilities, and inventory UI layers
+- Server-driven movement reconciliation and prediction correction
 
 ## Controls
 
-- W/A/S/D: Movement (placeholder)
-- Mouse: Camera control (placeholder)
-- E: Interact (placeholder)
-- Left Click: Attack (placeholder)
-- T: Toggle chat (placeholder)
-- I: Toggle inventory (placeholder)
-- ESC: Return to menu
+- `W/A/S/D`: Move the player capsule (strafe + forward/back)
+- `Mouse Left Drag`: Orbit the camera around the player without turning
+- `Mouse Right Drag`: Rotate the player and keep the camera aligned
+- `Mouse Wheel`: Zoom the camera in/out
+- `ESC`: Return to the character selection menu

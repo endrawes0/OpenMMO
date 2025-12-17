@@ -1,38 +1,103 @@
-[gd_scene load_steps=2 format=3 uid="uid://dq8y7n2jxqkr"]
+[gd_scene load_steps=10 format=3 uid="uid://dq8y7n2jxqkr"]
 
-[ext_resource type="Script" path="res://scripts/GameWorld.gd" id="1_abc123"]
+[ext_resource type="Script" path="res://scripts/GameWorld.gd" id="1_l7x5n"]
+
+[sub_resource type="Environment" id="Environment_oq0su"]
+background_mode = 2
+sky = SubResource("Sky_xq8uv")
+ambient_light_source = 1
+ambient_light_color = Color(0.38, 0.47, 0.58, 1)
+
+[sub_resource type="Sky" id="Sky_xq8uv"]
+sky_material = SubResource("ProceduralSky_j2mxa")
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSky_j2mxa"]
+sky_energy = 1.2
+sun_latitude = -15.0
+sun_longitude = 30.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_4y3eb"]
+size = Vector2(80, 80)
+subdivide_width = 16
+subdivide_depth = 16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_b2dme"]
+albedo_color = Color(0.34, 0.48, 0.35, 1)
+roughness = 0.9
+metallic = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_path"]
+albedo_color = Color(0.5, 0.4, 0.3, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rock"]
+albedo_color = Color(0.36, 0.36, 0.41, 1)
+roughness = 0.6
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_def456"]
+height = 2.0
+radius = 0.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_ghi789"]
+height = 2.0
+radius = 0.4
 
 [node name="GameWorld" type="Node3D"]
-script = ExtResource("1_abc123")
+script = ExtResource("1_l7x5n")
 
 [node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_oq0su")
 
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 5, 8)
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.939693, -0.17101, 0.296198, 0, 0.865926, 0.500171, -0.34202, -0.469846, 0.813798, 0, 18, 0)
 shadow_enabled = true
+light_energy = 2.0
+shadow_blur = 2.0
 
-[node name="Ground" type="MeshInstance3D" parent="."]
-mesh = SubResource("PlaneMesh_1abc123")
+[node name="Zone" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Ground" type="MeshInstance3D" parent="Zone"]
+mesh = SubResource("PlaneMesh_4y3eb")
+material_override = SubResource("StandardMaterial3D_b2dme")
+
+[node name="Path" type="CSGBox3D" parent="Zone"]
+transform = Transform3D(1, 0, 0, 0, 0.1, 0, 0, 0, 1, 0, 0.02, -10)
+size = Vector3(6, 0.2, 30)
+material = SubResource("StandardMaterial3D_path")
+
+[node name="WestRidge" type="CSGBox3D" parent="Zone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 1.5, 0)
+size = Vector3(4, 3, 80)
+material = SubResource("StandardMaterial3D_rock")
+
+[node name="EastRidge" type="CSGBox3D" parent="Zone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 1.5, 0)
+size = Vector3(4, 3, 80)
+material = SubResource("StandardMaterial3D_rock")
+
+[node name="CampRock" type="CSGBox3D" parent="Zone"]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -8, 0.7, 6)
+size = Vector3(3, 1.5, 3)
+material = SubResource("StandardMaterial3D_rock")
+smooth_faces = true
+
+[node name="SpawnPoint" type="Marker3D" parent="Zone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 12)
 
 [node name="Player" type="CharacterBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 12)
+collision_layer = 1
+collision_mask = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
 shape = SubResource("CapsuleShape3D_def456")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Player"]
 mesh = SubResource("CapsuleMesh_ghi789")
+material_override = SubResource("StandardMaterial3D_rock")
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_1abc123"]
-size = Vector2(100, 100)
-subdivide_width = 20
-subdivide_depth = 20
-
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_def456"]
-height = 2.0
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_ghi789"]
-height = 2.0
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 4.5, 9.5)
+current = true
+far = 500.0
