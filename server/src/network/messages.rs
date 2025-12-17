@@ -213,7 +213,10 @@ pub enum EntityEffect {
 /// Character management messages
 /// Request character list for account
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CharacterListRequest;
+pub struct CharacterListRequest {
+    #[serde(default)]
+    pub request: bool,
+}
 
 /// Response with character list
 #[derive(Debug, Clone, Serialize, Deserialize)]
