@@ -563,7 +563,13 @@ func _enter_game_world(character_data: Dictionary):
 	get_tree().set_meta("selected_character", character_data.duplicate(true))
 
 	network_debug.add_message("Attempting to change scene to GameWorld.tscn...")
-	var result = get_tree().change_scene_to_file("res://scenes/GameWorld.tscn")
+	var game_world_scene = load("res://scenes/GameWorld.tscn")
+	if game_world_scene == null:
+		_show_error("Failed to load GameWorld scene")
+		ui_state_manager.go_to_character_select()
+		return
+	
+	var result = get_tree().change_scene_to_packed(game_world_scene)
 	network_debug.add_message("Scene change result: " + str(result))
 	if result != OK:
 		_show_error("Failed to enter game world (error: " + str(result) + ")")
