@@ -623,6 +623,32 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                             };
 
+                            // Validate character_id
+                            if select_req.character_id < 0 {
+                                let error_response = network::messages::CharacterSelectResponse {
+                                    success: false,
+                                    character: None,
+                                    error_message: Some("Invalid character ID".to_string()),
+                                };
+
+                                let response = Envelope {
+                                    sequence_id: envelope.sequence_id,
+                                    timestamp: SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_millis()
+                                        as u64,
+                                    payload: Payload::CharacterSelectResponse(error_response),
+                                };
+
+                                if let Ok(json) = serde_json::to_string(&response) {
+                                    let _ = socket.send(Message::Text(json)).await;
+                                }
+                                continue;
+                            }
+
+                            let character_id_u64 = select_req.character_id as u64;
+
                             // Get all characters and find the selected one
                             let characters_result =
                                 state.account_service.get_characters(account_id).await;
@@ -632,7 +658,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     // Find the character with the requested ID
                                     let selected_character = characters
                                         .into_iter()
-                                        .find(|c| c.id.as_u128() as u64 == select_req.character_id);
+                                        .find(|c| c.id.as_u128() as u64 == character_id_u64);
 
                                     match selected_character {
                                         Some(character) => {
