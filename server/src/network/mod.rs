@@ -14,6 +14,7 @@ pub struct Session {
     pub character_id: Option<u64>,
     pub authenticated: bool,
     pub connected_at: std::time::Instant,
+    pub character_id_map: HashMap<u64, Uuid>,
 }
 
 /// Movement intent from a client
@@ -48,6 +49,7 @@ impl SessionStore {
             character_id: None,
             authenticated: false,
             connected_at: std::time::Instant::now(),
+            character_id_map: HashMap::new(),
         };
 
         let mut sessions = self.sessions.write().await;
@@ -89,6 +91,28 @@ impl SessionStore {
     pub async fn get_active_sessions(&self) -> Vec<Session> {
         let sessions = self.sessions.read().await;
         sessions.values().cloned().collect()
+    }
+
+    pub async fn set_character_id_map(
+        &self,
+        session_id: &Uuid,
+        id_map: HashMap<u64, Uuid>,
+    ) {
+        if let Some(mut session) = self.get_session(session_id).await {
+            session.character_id_map = id_map;
+            self.update_session(session).await;
+        }
+    }
+
+    pub async fn resolve_character_uuid(
+        &self,
+        session_id: &Uuid,
+        client_character_id: u64,
+    ) -> Option<Uuid> {
+        let sessions = self.sessions.read().await;
+        sessions
+            .get(session_id)
+            .and_then(|s| s.character_id_map.get(&client_character_id).cloned())
     }
 }
 

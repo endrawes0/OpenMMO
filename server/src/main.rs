@@ -17,9 +17,33 @@ use axum::{
     Router,
 };
 use serde_json::json;
+use std::collections::HashMap;
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
+
+// Convert UUID to client-friendly ID (hash to u32 for compatibility)
+fn uuid_to_client_id(uuid: &Uuid) -> u64 {
+    // Use a simple hash of the UUID to create a stable, smaller ID
+    let bytes = uuid.as_bytes();
+    let mut hash: u64 = 0;
+    for (i, &byte) in bytes.iter().enumerate() {
+        hash = hash.wrapping_mul(31).wrapping_add(byte as u64);
+        // Use wrapping addition to prevent overflow
+        hash = hash.wrapping_add((i as u64).wrapping_mul(byte as u64));
+    }
+    // Ensure it's positive and within reasonable range
+    let mut result = hash.wrapping_rem(1000000000).wrapping_add(1000000);
+    // Ensure result is positive
+    if result > 9000000000 {
+        result = result - 8000000000;  // Keep in reasonable range
+    }
+    
+    // Debug log to verify conversion
+    info!("UUID {} converted to client ID {}", uuid, result);
+    
+    result
+}
 
 #[derive(Clone)]
 struct AppState {
@@ -413,7 +437,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 Ok(character) => network::messages::CharacterCreateResponse {
                                     success: true,
                                     character: Some(network::messages::CharacterInfo {
-                                        id: character.id.as_u128() as u64,
+                                                    id: uuid_to_client_id(&character.id),
                                         name: character.name,
                                         class: character.class,
                                         level: character.level as u32,
@@ -514,24 +538,35 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
 
                             let character_list_response = match characters_result {
                                 Ok(characters) => {
+                                    let mut id_map: HashMap<u64, Uuid> = HashMap::new();
                                     let character_infos: Vec<network::messages::CharacterInfo> =
                                         characters
                                             .into_iter()
-                                            .map(|c| network::messages::CharacterInfo {
-                                                id: c.id.as_u128() as u64,
-                                                name: c.name,
-                                                class: c.class,
-                                                level: c.level as u32,
-                                                experience: c.experience as u64,
-                                                zone_id: c.zone_id,
-                                                health: c.health as u32,
-                                                max_health: c.max_health as u32,
-                                                resource_type: c.resource_type,
-                                                resource_value: c.resource_value as u32,
-                                                max_resource: c.max_resource as u32,
-                                                is_online: c.is_online,
+                                            .map(|c| {
+                                                let client_id = uuid_to_client_id(&c.id);
+                                                id_map.insert(client_id, c.id);
+                                                network::messages::CharacterInfo {
+                                                    id: client_id,
+                                                    name: c.name,
+                                                    class: c.class,
+                                                    level: c.level as u32,
+                                                    experience: c.experience as u64,
+                                                    zone_id: c.zone_id,
+                                                    health: c.health as u32,
+                                                    max_health: c.max_health as u32,
+                                                    resource_type: c.resource_type,
+                                                    resource_value: c.resource_value as u32,
+                                                    max_resource: c.max_resource as u32,
+                                                    is_online: c.is_online,
+                                                }
                                             })
                                             .collect();
+
+                                    // Store mapping so later selection requests can be resolved
+                                    state
+                                        .session_store
+                                        .set_character_id_map(&session_id, id_map)
+                                        .await;
 
                                     network::messages::CharacterListResponse {
                                         characters: character_infos,
@@ -623,6 +658,37 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                             };
 
+                            // Resolve the client-provided ID back to the real character UUID
+                            let resolved_character_uuid = match state
+                                .session_store
+                                .resolve_character_uuid(&session_id, select_req.character_id)
+                                .await
+                            {
+                                Some(id) => id,
+                                None => {
+                                    let error_response =
+                                        network::messages::CharacterSelectResponse {
+                                            success: false,
+                                            character: None,
+                                            error_message: Some("Character not found".to_string()),
+                                        };
+
+                                    let response = Envelope {
+                                        sequence_id: envelope.sequence_id,
+                                        timestamp: SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_millis() as u64,
+                                        payload: Payload::CharacterSelectResponse(error_response),
+                                    };
+
+                                    if let Ok(json) = serde_json::to_string(&response) {
+                                        let _ = socket.send(Message::Text(json)).await;
+                                    }
+                                    continue;
+                                }
+                            };
+
                             // Get all characters and find the selected one
                             let characters_result =
                                 state.account_service.get_characters(account_id).await;
@@ -632,7 +698,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     // Find the character with the requested ID
                                     let selected_character = characters
                                         .into_iter()
-                                        .find(|c| c.id.as_u128() as u64 == select_req.character_id);
+                                        .find(|c| c.id == resolved_character_uuid);
 
                                     match selected_character {
                                         Some(character) => {
@@ -650,7 +716,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                             network::messages::CharacterSelectResponse {
                                                 success: true,
                                                 character: Some(network::messages::CharacterInfo {
-                                                    id: character.id.as_u128() as u64,
+                                                    id: uuid_to_client_id(&character.id),
                                                     name: character.name,
                                                     class: character.class,
                                                     level: character.level as u32,

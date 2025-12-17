@@ -76,6 +76,13 @@ func process_input(event):
 					emit_signal("action_pressed", "scroll_up")
 				MOUSE_BUTTON_WHEEL_DOWN:
 					emit_signal("action_pressed", "scroll_down")
+		else:
+			# Handle mouse button release for camera rotation
+			match event.button_index:
+				MOUSE_BUTTON_LEFT:
+					emit_signal("action_pressed", "primary_action_release")
+				MOUSE_BUTTON_RIGHT:
+					emit_signal("action_pressed", "secondary_action_release")
 
 func _update_movement_input(direction: Vector2):
 	var old_input = movement_input

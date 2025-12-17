@@ -17,11 +17,17 @@ func _ready():
 	# Initialize engine-agnostic modules
 	_initialize_modules()
 
-	# Set up initial scene
-	if camera:
-		print("Camera position: ", camera.global_position)
-	if player:
-		print("Player position: ", player.global_position)
+	# Set up camera and player relationship
+	if camera and player:
+		camera.set_target(player)
+		print("Camera following player at position: ", player.global_position)
+		
+		# Initialize player controller
+		if player.has_method("set_player_id"):
+			player.set_player_id(1)  # Temporary player ID
+		
+		# Set initial camera position
+		camera.update_camera_position()
 
 func _initialize_modules():
 	# Load engine-agnostic modules
@@ -42,18 +48,21 @@ func _initialize_modules():
 	input_manager.capture_mouse()
 
 func _process(delta):
-	if input_manager:
-		input_manager.process_input(null)  # Process any buffered input
-
-	if movement_system and player:
-		# Update player position based on movement system
-		var predicted_position = movement_system.predict_position(delta)
-		player.global_position = predicted_position
+	# Player movement is now handled by PlayerController script
+	# Input is handled by PlayerController's _input method
+	pass
 
 func _input(event):
-	# Pass input events to input manager
-	if input_manager:
-		input_manager.process_input(event)
+	# Input is now handled by PlayerController
+	# We only handle global shortcuts here
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_F1:
+			# Toggle debug info
+			print("F1 pressed - toggle debug (TODO)")
+		elif event.keycode == KEY_F5:
+			# Reload scene
+			print("F5 pressed - reloading scene")
+			get_tree().reload_current_scene()
 
 func _on_player_spawned(player_id: int):
 	print("Player spawned with ID: ", player_id)

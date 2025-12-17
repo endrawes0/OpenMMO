@@ -131,23 +131,31 @@ func _send_handshake():
 	send_message(handshake)
 
 func _process_incoming_message(message: Dictionary):
+	print("DEBUG: _process_incoming_message called with:", message)
 	emit_signal("message_received", message)
 
 	# Handle specific message types
 	if message.has("payload"):
 		var payload = message.payload
+		print("DEBUG: Processing payload type:", payload.keys())
 
 		if payload.has("HandshakeResponse"):
+			print("DEBUG: Handling HandshakeResponse")
 			_handle_handshake_response(payload.HandshakeResponse)
 		elif payload.has("AuthResponse"):
+			print("DEBUG: Handling AuthResponse")
 			_handle_auth_response(payload.AuthResponse)
 		elif payload.has("CharacterListResponse"):
+			print("DEBUG: Handling CharacterListResponse")
 			_handle_character_list_response(payload.CharacterListResponse)
 		elif payload.has("CharacterCreateResponse"):
+			print("DEBUG: Handling CharacterCreateResponse")
 			_handle_character_create_response(payload.CharacterCreateResponse)
 		elif payload.has("CharacterSelectResponse"):
+			print("DEBUG: Handling CharacterSelectResponse")
 			_handle_character_select_response(payload.CharacterSelectResponse)
 		elif payload.has("Pong"):
+			print("DEBUG: Handling Pong")
 			_handle_pong(payload.Pong)
 		elif payload.has("Error"):
 			_handle_error(payload.Error)
@@ -173,7 +181,17 @@ func _handle_auth_response(response: Dictionary):
 		emit_signal("auth_failed", response.get("message", "Authentication failed"))
 
 func _handle_character_list_response(response: Dictionary):
+	print("DEBUG: Character list response received")
 	var characters = response.get("characters", [])
+	print("DEBUG: Number of characters:", characters.size())
+	
+	for character in characters:
+		print("DEBUG: Character:", character.name, "ID:", character.id, "type:", typeof(character.id))
+		# JSON numbers arrive as floats; ensure IDs are ints before using them
+		if character.has("id"):
+			character.id = int(character.id)
+			print("DEBUG: Normalized character ID to int:", character.id)
+	
 	emit_signal("character_list_received", characters)
 
 func _handle_character_create_response(response: Dictionary):
@@ -184,10 +202,14 @@ func _handle_character_create_response(response: Dictionary):
 		emit_signal("connection_error", error_msg)
 
 func _handle_character_select_response(response: Dictionary):
-	if response.has("character") and response.character != null:
+	print("DEBUG: Character select response received:", response)
+	if response.get("success", false) == true and response.has("character") and response.character != null:
+		print("DEBUG: Emitting character_selected signal with:", response.character)
 		emit_signal("character_selected", response.character)
 	else:
-		emit_signal("connection_error", "Character selection failed")
+		var error_msg = response.get("error_message", "Character selection failed")
+		print("DEBUG: Character selection failed - response:", response, "error:", error_msg)
+		emit_signal("connection_error", error_msg)
 
 func _handle_error(error: Dictionary):
 	push_error("Server error: " + error.get("message", "Unknown error"))
@@ -241,13 +263,16 @@ func create_character(name: String, character_class: String) -> Error:
 	}
 	return send_message(request)
 
-func select_character(character_id: int) -> Error:
+func select_character(character_id) -> Error:
+	print("DEBUG: Sending character select request for ID:", character_id, "type:", typeof(character_id))
 	var request = {
 		"CharacterSelectRequest": {
 			"character_id": character_id
 		}
 	}
-	return send_message(request)
+	var result = send_message(request)
+	print("DEBUG: Character select request result:", result)
+	return result
 
 # Utility methods
 func _hash_password(password: String) -> String:

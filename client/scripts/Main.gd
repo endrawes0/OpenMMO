@@ -42,6 +42,7 @@ var connection_timer = null
 var auth_timer = null
 var ui_fallback_timer = null
 var current_screen = null
+var is_transitioning_to_game = false
 
 func _ready():
 	print("DEBUG: Main._ready() called")
@@ -49,8 +50,8 @@ func _ready():
 	print("OpenMMO Client Started")
 	network_debug.set_status("Disconnected")
 
-	# Set default server address
-	server_address.text = "ws://localhost:8080/ws"
+	# Load saved credentials
+	_load_saved_credentials()
 
 	# Initialize engine-agnostic modules
 	_initialize_modules()
@@ -100,8 +101,8 @@ func _initialize_modules():
 func _process(_delta):
 	if client_networking:
 		client_networking.poll()
-		# Debug: Check connection state occasionally
-		if Engine.get_process_frames() % 60 == 0:  # Every second
+		# Debug: Check connection state occasionally (reduced frequency)
+		if Engine.get_process_frames() % 600 == 0:  # Every 10 seconds
 			var state = client_networking.get_connection_state()
 			if state != 0:  # Not DISCONNECTED
 				print("DEBUG: Client connection state:", state)
@@ -142,16 +143,19 @@ func _on_select_character_pressed():
 
 	var selected_index = selected_items[0]
 	var characters = ui_state_manager.get_available_characters()
+	print("DEBUG: Available characters count:", characters.size(), "selected index:", selected_index)
+	
 	if selected_index >= characters.size():
 		_show_error("Invalid character selection")
+		print("DEBUG: Selected index", selected_index, "is out of bounds for", characters.size(), "characters")
 		return
 
 	var selected_character = characters[selected_index]
-	var character_id = selected_character.id
+	var character_id = int(selected_character.id)
 
 	_clear_error()
 	ui_state_manager.go_to_loading()
-	network_debug.add_message("Selecting character: " + selected_character.name)
+	network_debug.add_message("Selecting character: " + selected_character.name + " (ID: " + str(character_id) + ")")
 
 	var error = client_networking.select_character(character_id)
 	if error != OK:
@@ -230,7 +234,8 @@ func _cleanup_timers():
 
 	if ping_timer:
 		ping_timer.stop()
-		# Don't queue_free ping_timer as it might be reused
+		ping_timer.queue_free()
+		ping_timer = null
 
 func _connect_and_authenticate(url: String, username: String, password: String, is_register: bool):
 	ui_state_manager.go_to_loading()
@@ -343,10 +348,14 @@ func _on_network_message_received(message: Dictionary):
 	# Handle specific message types
 	if message.has("payload"):
 		var payload = message.payload
+		print("DEBUG: Main.gd received message type:", payload.keys())
 		if payload.has("Pong"):
 			network_debug.add_message("Received pong - connection healthy")
 		elif payload.has("HandshakeResponse"):
 			network_debug.add_message("Handshake completed")
+		elif payload.has("CharacterSelectResponse"):
+			print("DEBUG: Main.gd received CharacterSelectResponse")
+			network_debug.add_message("Character selection response received")
 
 func _on_network_error(error: String):
 	_cleanup_timers()
@@ -363,22 +372,16 @@ func _on_auth_successful(auth_data: Dictionary):
 	_cleanup_timers()
 	network_debug.add_message("Authentication successful")
 
+	# Save successful login credentials
+	_save_credentials(server_address.text, username.text)
+
 	# Request character list
-	client_networking.request_character_list()
-
-func _on_auth_failed(reason: String):
-	_cleanup_timers()
-	network_debug.add_message("Authentication failed: " + reason)
-	ui_state_manager.set_error_message(reason)
-	ui_state_manager.go_to_login()
-
-# Character management signal handlers
-func _on_character_list_received(characters: Array):
-	network_debug.add_message("Received " + str(characters.size()) + " characters")
-	ui_state_manager.set_available_characters(characters)
-
-	# Always go to character select state first
-	ui_state_manager.go_to_character_select()
+	var error = client_networking.request_character_list()
+	if error != OK:
+		_show_error("Failed to request character list")
+		ui_state_manager.go_to_login()
+	else:
+		ui_state_manager.go_to_character_select()
 
 func _on_character_created(character_data: Dictionary):
 	network_debug.add_message("Character created: " + character_data.get("name", "Unknown"))
@@ -391,9 +394,9 @@ func _on_character_created(character_data: Dictionary):
 
 func _on_character_selected(character_data: Dictionary):
 	network_debug.add_message("Character selected: " + character_data.get("name", "Unknown"))
-	ui_state_manager.go_to_connected()
-
-	# Transition to game world
+	
+	# Don't go to CONNECTED state - directly transition to game world
+	# This avoids the UI timeout issue
 	_enter_game_world(character_data)
 
 # UI state management
@@ -432,14 +435,15 @@ func _update_ui_for_state(state):
 		ui_state_manager.UIState.LOADING:
 			loading_panel.visible = true
 			$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Connecting..."
-			# Set up UI fallback timeout (20 seconds)
-			if ui_fallback_timer:
-				ui_fallback_timer.stop()
-			ui_fallback_timer = Timer.new()
-			ui_fallback_timer.wait_time = 20.0
-			ui_fallback_timer.connect("timeout", Callable(self, "_on_ui_timeout"))
-			add_child(ui_fallback_timer)
-			ui_fallback_timer.start()
+			# Set up UI fallback timeout (20 seconds) - but not for game world transition
+			if not is_transitioning_to_game:
+				if ui_fallback_timer:
+					ui_fallback_timer.stop()
+				ui_fallback_timer = Timer.new()
+				ui_fallback_timer.wait_time = 20.0
+				ui_fallback_timer.connect("timeout", Callable(self, "_on_ui_timeout"))
+				add_child(ui_fallback_timer)
+				ui_fallback_timer.start()
 		ui_state_manager.UIState.CONNECTED:
 			# Stop UI fallback timer on successful connection
 			if ui_fallback_timer:
@@ -448,10 +452,12 @@ func _update_ui_for_state(state):
 				ui_fallback_timer = null
 			loading_panel.visible = true
 			$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Entering game world..."
+			# Don't set a new timeout timer since we're transitioning scenes
 
 func _populate_character_list():
 	character_list.clear()
 	var characters = ui_state_manager.get_available_characters()
+	print("DEBUG: Populating character list with", characters.size(), "characters")
 
 	for character in characters:
 		var display_text = character.name + " (Lv." + str(character.level) + " " + character.class + ")"
@@ -474,8 +480,32 @@ func _clear_error():
 
 func _enter_game_world(character_data: Dictionary):
 	network_debug.add_message("Entering game world...")
-	# TODO: Transition to GameWorld scene
-	# get_tree().change_scene_to_file("res://scenes/GameWorld.tscn")
+	print("Transitioning to GameWorld scene with character: ", character_data)
+	
+	# Set flag to prevent UI timeout during game world transition
+	is_transitioning_to_game = true
+	
+	# Store character data for GameWorld to use
+	# TODO: Pass character data to GameWorld through a global manager
+	
+	# Clean up any remaining timers before scene change
+	_cleanup_timers()
+	
+	# Update UI to show loading without setting a timeout timer
+	$VBoxContainer/LoadingPanel.visible = true
+	$VBoxContainer/LoadingPanel/LoadingVBox/LoadingLabel.text = "Loading game world..."
+	
+	# Small delay to ensure cleanup completes
+	await get_tree().process_frame
+	
+	# Transition to GameWorld scene
+	var error = get_tree().change_scene_to_file("res://scenes/GameWorld_Simple.tscn")
+	if error != OK:
+		print("Failed to load GameWorld scene: ", error)
+		_show_error("Failed to load game world")
+		is_transitioning_to_game = false
+	else:
+		print("Successfully loaded GameWorld scene")
 
 func _on_exit_button_pressed():
 	print("Exit button pressed")
@@ -484,3 +514,40 @@ func _on_exit_button_pressed():
 	if ping_timer:
 		ping_timer.stop()
 	get_tree().quit()
+
+# Credential persistence functions
+func _load_saved_credentials():
+	var config = ConfigFile.new()
+	var err = config.load("user://client_config.cfg")
+
+	print("DEBUG: Loading config file, error code:", err)
+
+	if err == OK:
+		# Load saved server address
+		var saved_server = config.get_value("login", "server_address", "ws://localhost:8080/ws")
+		server_address.text = saved_server
+
+		# Load saved username
+		var saved_username = config.get_value("login", "username", "")
+		username.text = saved_username
+
+		print("DEBUG: Loaded saved credentials - Server:", saved_server, "Username:", saved_username)
+	else:
+		# No saved config, use defaults
+		server_address.text = "ws://localhost:8080/ws"
+		username.text = ""
+		print("DEBUG: No saved credentials found (error:", err, "), using defaults")
+
+func _save_credentials(server_addr: String, user_name: String):
+	var config = ConfigFile.new()
+
+	# Save server address and username
+	config.set_value("login", "server_address", server_addr)
+	config.set_value("login", "username", user_name)
+
+	# Save to user data directory
+	var err = config.save("user://client_config.cfg")
+	if err == OK:
+		print("DEBUG: Saved credentials - Server:", server_addr, "Username:", user_name)
+	else:
+		print("DEBUG: Failed to save credentials:", err)
