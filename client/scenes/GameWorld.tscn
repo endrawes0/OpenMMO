@@ -55,7 +55,7 @@ light_energy = 2.0
 shadow_blur = 2.0
 
 [node name="Zone" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0)
 
 [node name="Ground" type="MeshInstance3D" parent="Zone"]
 mesh = SubResource("PlaneMesh_4y3eb")
