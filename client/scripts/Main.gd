@@ -429,6 +429,9 @@ func _on_character_list_received(characters: Array):
 
 	# Always go to character select state first
 	ui_state_manager.go_to_character_select()
+	
+	# Populate the character list UI
+	_populate_character_list()
 
 func _on_character_created(character_data: Dictionary):
 	network_debug.add_message("Character created: " + character_data.get("name", "Unknown"))
