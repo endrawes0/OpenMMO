@@ -558,155 +558,180 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }
                             }
                         }
-                        Payload::CharacterSelectRequest(select_req) => {
-                            // Handle character selection request
-                            // Get account_id from session
-                            let account_id = match state
-                                .session_store
-                                .get_session(&session_id)
-                                .await
-                            {
-                                Some(session) => match session.account_id {
-                                    Some(id) => id,
-                                    None => {
-                                        // Send error response - not authenticated
-                                        let error_response =
-                                            network::messages::CharacterSelectResponse {
-                                                success: false,
-                                                character: None,
-                                                error_message: Some(
-                                                    "Not authenticated".to_string(),
-                                                ),
-                                            };
+                         Payload::CharacterSelectRequest(select_req) => {
+                             // Handle character selection request
+                             // Get account_id from session
+                             let account_id = match state
+                                 .session_store
+                                 .get_session(&session_id)
+                                 .await
+                             {
+                                 Some(session) => match session.account_id {
+                                     Some(id) => id,
+                                     None => {
+                                         // Send error response - not authenticated
+                                         let error_response =
+                                             network::messages::CharacterSelectResponse {
+                                                 success: false,
+                                                 character: None,
+                                                 error_message: Some(
+                                                     "Not authenticated".to_string(),
+                                                 ),
+                                             };
 
-                                        let response = Envelope {
-                                            sequence_id: envelope.sequence_id,
-                                            timestamp: SystemTime::now()
-                                                .duration_since(UNIX_EPOCH)
-                                                .unwrap()
-                                                .as_millis()
-                                                as u64,
-                                            payload: Payload::CharacterSelectResponse(
-                                                error_response,
-                                            ),
-                                        };
+                                         let response = Envelope {
+                                             sequence_id: envelope.sequence_id,
+                                             timestamp: SystemTime::now()
+                                                 .duration_since(UNIX_EPOCH)
+                                                 .unwrap()
+                                                 .as_millis()
+                                                 as u64,
+                                             payload: Payload::CharacterSelectResponse(
+                                                 error_response,
+                                             ),
+                                         };
 
-                                        if let Ok(json) = serde_json::to_string(&response) {
-                                            let _ = socket.send(Message::Text(json)).await;
-                                        }
-                                        continue;
-                                    }
-                                },
-                                None => {
-                                    // Send error response - session not found
-                                    let error_response =
-                                        network::messages::CharacterSelectResponse {
-                                            success: false,
-                                            character: None,
-                                            error_message: Some("Session not found".to_string()),
-                                        };
+                                         if let Ok(json) = serde_json::to_string(&response) {
+                                             let _ = socket.send(Message::Text(json)).await;
+                                         }
+                                         continue;
+                                     }
+                                 },
+                                 None => {
+                                     // Send error response - session not found
+                                     let error_response =
+                                         network::messages::CharacterSelectResponse {
+                                             success: false,
+                                             character: None,
+                                             error_message: Some("Session not found".to_string()),
+                                         };
 
-                                    let response = Envelope {
-                                        sequence_id: envelope.sequence_id,
-                                        timestamp: SystemTime::now()
-                                            .duration_since(UNIX_EPOCH)
-                                            .unwrap()
-                                            .as_millis()
-                                            as u64,
-                                        payload: Payload::CharacterSelectResponse(error_response),
-                                    };
+                                     let response = Envelope {
+                                         sequence_id: envelope.sequence_id,
+                                         timestamp: SystemTime::now()
+                                             .duration_since(UNIX_EPOCH)
+                                             .unwrap()
+                                             .as_millis()
+                                             as u64,
+                                         payload: Payload::CharacterSelectResponse(error_response),
+                                     };
 
-                                    if let Ok(json) = serde_json::to_string(&response) {
-                                        let _ = socket.send(Message::Text(json)).await;
-                                    }
-                                    continue;
-                                }
-                            };
+                                     if let Ok(json) = serde_json::to_string(&response) {
+                                         let _ = socket.send(Message::Text(json)).await;
+                                     }
+                                     continue;
+                                 }
+                             };
 
-                            // Get all characters and find the selected one
-                            let characters_result =
-                                state.account_service.get_characters(account_id).await;
+                             // Validate character_id
+                             if select_req.character_id < 0 {
+                                 let error_response = network::messages::CharacterSelectResponse {
+                                     success: false,
+                                     character: None,
+                                     error_message: Some("Invalid character ID".to_string()),
+                                 };
 
-                            let character_select_response = match characters_result {
-                                Ok(characters) => {
-                                    // Find the character with the requested ID
-                                    let selected_character = characters
-                                        .into_iter()
-                                        .find(|c| c.id.as_u128() as u64 == select_req.character_id);
+                                 let response = Envelope {
+                                     sequence_id: envelope.sequence_id,
+                                     timestamp: SystemTime::now()
+                                         .duration_since(UNIX_EPOCH)
+                                         .unwrap()
+                                         .as_millis() as u64,
+                                     payload: Payload::CharacterSelectResponse(error_response),
+                                 };
 
-                                    match selected_character {
-                                        Some(character) => {
-                                            // Update session with selected character
-                                            state
-                                                .session_store
-                                                .authenticate_session(
-                                                    &session_id,
-                                                    account_id,
-                                                    character.id.as_u128() as u64,
-                                                    character.id.as_u128() as u64,
-                                                )
-                                                .await;
+                                 if let Ok(json) = serde_json::to_string(&response) {
+                                     let _ = socket.send(Message::Text(json)).await;
+                                 }
+                                 continue;
+                             }
 
-                                            network::messages::CharacterSelectResponse {
-                                                success: true,
-                                                character: Some(network::messages::CharacterInfo {
-                                                    id: character.id.as_u128() as u64,
-                                                    name: character.name,
-                                                    class: character.class,
-                                                    level: character.level as u32,
-                                                    experience: character.experience as u64,
-                                                    zone_id: character.zone_id,
-                                                    health: character.health as u32,
-                                                    max_health: character.max_health as u32,
-                                                    resource_type: character.resource_type,
-                                                    resource_value: character.resource_value as u32,
-                                                    max_resource: character.max_resource as u32,
-                                                    is_online: character.is_online,
-                                                }),
-                                                error_message: None,
-                                            }
-                                        }
-                                        None => {
-                                            // Character not found
-                                            network::messages::CharacterSelectResponse {
-                                                success: false,
-                                                character: None,
-                                                error_message: Some(
-                                                    "Character not found".to_string(),
-                                                ),
-                                            }
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    error!("Failed to get characters for selection: {:?}", e);
-                                    network::messages::CharacterSelectResponse {
-                                        success: false,
-                                        character: None,
-                                        error_message: Some(
-                                            "Failed to retrieve characters".to_string(),
-                                        ),
-                                    }
-                                }
-                            };
+                             let character_id_u64 = select_req.character_id as u64;
 
-                            let response = Envelope {
-                                sequence_id: envelope.sequence_id,
-                                timestamp: SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_millis() as u64,
-                                payload: Payload::CharacterSelectResponse(
-                                    character_select_response,
-                                ),
-                            };
+                             // Get all characters and find the selected one
+                             let characters_result =
+                                 state.account_service.get_characters(account_id).await;
 
-                            if let Ok(json) = serde_json::to_string(&response) {
-                                if socket.send(Message::Text(json)).await.is_err() {
-                                    break;
-                                }
-                            }
-                        }
+                             let character_select_response = match characters_result {
+                                 Ok(characters) => {
+                                     // Find the character with the requested ID
+                                     let selected_character = characters
+                                         .into_iter()
+                                         .find(|c| c.id.as_u128() as u64 == character_id_u64);
+
+                                     match selected_character {
+                                         Some(character) => {
+                                             // Update session with selected character
+                                             state
+                                                 .session_store
+                                                 .authenticate_session(
+                                                     &session_id,
+                                                     account_id,
+                                                     character.id.as_u128() as u64,
+                                                     character.id.as_u128() as u64,
+                                                 )
+                                                 .await;
+
+                                             network::messages::CharacterSelectResponse {
+                                                 success: true,
+                                                 character: Some(network::messages::CharacterInfo {
+                                                     id: character.id.as_u128() as u64,
+                                                     name: character.name,
+                                                     class: character.class,
+                                                     level: character.level as u32,
+                                                     experience: character.experience as u64,
+                                                     zone_id: character.zone_id,
+                                                     health: character.health as u32,
+                                                     max_health: character.max_health as u32,
+                                                     resource_type: character.resource_type,
+                                                     resource_value: character.resource_value as u32,
+                                                     max_resource: character.max_resource as u32,
+                                                     is_online: character.is_online,
+                                                 }),
+                                                 error_message: None,
+                                             }
+                                         }
+                                         None => {
+                                             // Character not found
+                                             network::messages::CharacterSelectResponse {
+                                                 success: false,
+                                                 character: None,
+                                                 error_message: Some(
+                                                     "Character not found".to_string(),
+                                                 ),
+                                             }
+                                         }
+                                     }
+                                 }
+                                 Err(e) => {
+                                     error!("Failed to get characters for selection: {:?}", e);
+                                     network::messages::CharacterSelectResponse {
+                                         success: false,
+                                         character: None,
+                                         error_message: Some(
+                                             "Failed to retrieve characters".to_string(),
+                                         ),
+                                     }
+                                 }
+                             };
+
+                             let response = Envelope {
+                                 sequence_id: envelope.sequence_id,
+                                 timestamp: SystemTime::now()
+                                     .duration_since(UNIX_EPOCH)
+                                     .unwrap()
+                                     .as_millis() as u64,
+                                 payload: Payload::CharacterSelectResponse(
+                                     character_select_response,
+                                 ),
+                             };
+
+                             if let Ok(json) = serde_json::to_string(&response) {
+                                 if socket.send(Message::Text(json)).await.is_err() {
+                                     break;
+                                 }
+                             }
+                         }
                         Payload::HandshakeRequest(_) => {
                             // Already handled handshake
                         }
