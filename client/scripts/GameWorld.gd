@@ -2,10 +2,10 @@ extends Node3D
 
 const MOVE_SPEED := 4.5
 const ACCELERATION := 12.0
-const CAMERA_MIN_DISTANCE := 2.5
+const CAMERA_MIN_DISTANCE := 0.5  # First person distance
 const CAMERA_MAX_DISTANCE := 12.0
-const CAMERA_MIN_PITCH := deg_to_rad(-80.0)
-const CAMERA_MAX_PITCH := deg_to_rad(-15.0)
+const CAMERA_MIN_PITCH := deg_to_rad(-45.0)  # 45 degrees below player
+const CAMERA_MAX_PITCH := deg_to_rad(60.0)   # 60 degrees above player
 const CAMERA_SENSITIVITY := 0.005
 const CAMERA_ZOOM_STEP := 0.75
 const PLAYER_EYE_HEIGHT := 1.6
@@ -147,15 +147,23 @@ func _update_camera_position() -> void:
 	var player_yaw = player.rotation.y
 	var yaw = player_yaw + camera_orbit_offset
 	var focus_point = player.global_position + Vector3(0, PLAYER_EYE_HEIGHT, 0)
-	var horizontal_distance = camera_distance * cos(camera_pitch)
-	var height_offset = camera_distance * sin(camera_pitch) * -1.0
-	var offset = Vector3(
-		horizontal_distance * sin(yaw),
-		height_offset,
-		horizontal_distance * cos(yaw)
-	)
-	camera.global_position = focus_point + offset
-	camera.look_at(focus_point, Vector3.UP)
+	
+	# Handle first person camera (very close to player)
+	if camera_distance <= CAMERA_MIN_DISTANCE:
+		camera.global_position = focus_point + Vector3(0, 0.1, 0)  # Slightly above eye level
+		camera.rotation = player.rotation
+		camera.rotation.x = -camera_pitch  # Apply pitch directly
+	else:
+		# Third person camera
+		var horizontal_distance = camera_distance * cos(camera_pitch)
+		var height_offset = camera_distance * sin(camera_pitch)
+		var offset = Vector3(
+			horizontal_distance * sin(yaw),
+			height_offset,
+			horizontal_distance * cos(yaw)
+		)
+		camera.global_position = focus_point + offset
+		camera.look_at(focus_point, Vector3.UP)
 
 func _handle_mouse_input(event) -> void:
 	if event is InputEventMouseButton:
@@ -186,12 +194,16 @@ func _handle_camera_drag(relative: Vector2) -> void:
 	var vertical_delta = -relative.y * CAMERA_SENSITIVITY
 
 	if left_dragging:
+		# Left drag: revolve camera around player
 		camera_orbit_offset = wrapf(camera_orbit_offset + horizontal_delta, -TAU, TAU)
-	if right_dragging:
+		camera_pitch = clamp(camera_pitch + vertical_delta, CAMERA_MIN_PITCH, CAMERA_MAX_PITCH)
+	elif right_dragging:
+		# Right drag left/right: rotate player (and camera relative to player)
 		player.rotate_y(horizontal_delta)
 		camera_orbit_offset = 0.0
-
-	camera_pitch = clamp(camera_pitch + vertical_delta, CAMERA_MIN_PITCH, CAMERA_MAX_PITCH)
+		
+		# Right drag up/down: revolve camera above/below player with angle limits
+		camera_pitch = clamp(camera_pitch + vertical_delta, CAMERA_MIN_PITCH, CAMERA_MAX_PITCH)
 
 func _adjust_zoom(amount: float) -> void:
 	camera_distance = clamp(camera_distance + amount, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE)
