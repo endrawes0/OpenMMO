@@ -9,8 +9,8 @@ const CAMERA_MAX_PITCH := deg_to_rad(-15.0)
 const CAMERA_SENSITIVITY := 0.005
 const CAMERA_ZOOM_STEP := 0.75
 const PLAYER_EYE_HEIGHT := 1.6
-const GRAVITY := ProjectSettings.get_setting("physics/3d/default_gravity")
 
+@onready var gravity_value: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @onready var camera: Camera3D = $Camera3D
 @onready var player: CharacterBody3D = $Player
 @onready var spawn_point: Marker3D = $Zone/SpawnPoint
@@ -67,6 +67,18 @@ func _load_session_modules() -> void:
 func _load_character_data() -> void:
 	if get_tree().has_meta("selected_character"):
 		character_data = get_tree().get_meta("selected_character")
+	elif get_tree().has_meta("latest_world_snapshot"):
+		var snapshot = get_tree().get_meta("latest_world_snapshot")
+		var player_id = int(snapshot.get("player_entity_id", 0))
+		for entity_data in snapshot.get("entities", []):
+			if int(entity_data.get("id", 0)) == player_id:
+				character_data = {
+					"id": player_id,
+					"name": entity_data.get("state", {}).get("display_name", "Adventurer"),
+					"class": entity_data.get("entity_type", "Adventurer"),
+					"level": 1
+				}
+				break
 	else:
 		character_data = {
 			"id": 0,
@@ -80,6 +92,23 @@ func _initialize_player() -> void:
 		player.global_transform.origin = spawn_point.global_transform.origin
 	if movement_system:
 		movement_system.set_target_position(player.global_position)
+	if game_state_manager:
+		var player_id = int(character_data.get("id", 0))
+		if player_id > 0:
+			game_state_manager.set_player_entity(player_id)
+			var starting_entity = {
+				"id": player_id,
+				"name": character_data.get("name", "Adventurer"),
+				"class": character_data.get("class", "Adventurer"),
+				"level": character_data.get("level", 1),
+				"position": {
+					"x": player.global_position.x,
+					"y": player.global_position.y,
+					"z": player.global_position.z
+				},
+				"movement_state": "Idle"
+			}
+			game_state_manager.add_entity(player_id, starting_entity)
 
 func _configure_camera_defaults() -> void:
 	camera_distance = clamp(camera_distance, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE)
@@ -105,7 +134,7 @@ func _update_player_movement(delta: float) -> void:
 	horizontal_velocity = horizontal_velocity.move_toward(target_velocity, ACCELERATION * delta)
 	player.velocity.x = horizontal_velocity.x
 	player.velocity.z = horizontal_velocity.z
-	player.velocity.y -= GRAVITY * delta
+	player.velocity.y -= gravity_value * delta
 
 	player.move_and_slide()
 

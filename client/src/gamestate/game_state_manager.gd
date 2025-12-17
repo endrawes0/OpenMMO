@@ -13,17 +13,20 @@ signal zone_changed(zone_id: int)
 
 # Game state
 var current_zone_id: int = 1
+var current_zone_name: String = "starter_zone"
 var player_entity_id: int = 0
 var entities: Dictionary = {}  # entity_id -> entity_data
 var player_stats: Dictionary = {}
 var inventory: Array = []
 var equipment: Dictionary = {}
+var last_world_snapshot: Dictionary = {}
 
 func _init():
 	_reset_state()
 
 func _reset_state():
 	current_zone_id = 1
+	current_zone_name = "starter_zone"
 	player_entity_id = 0
 	entities.clear()
 	player_stats = {
@@ -34,6 +37,7 @@ func _reset_state():
 	}
 	inventory.clear()
 	equipment.clear()
+	last_world_snapshot = {}
 
 func set_player_entity(player_id: int):
 	player_entity_id = player_id
@@ -90,6 +94,35 @@ func set_zone(zone_id: int):
 
 func get_current_zone() -> int:
 	return current_zone_id
+
+func get_current_zone_name() -> String:
+	return current_zone_name
+
+func apply_world_snapshot(snapshot: Dictionary):
+	if snapshot.is_empty():
+		return
+	last_world_snapshot = snapshot.duplicate(true)
+
+	var zone_name = snapshot.get("zone_name", current_zone_name)
+	current_zone_name = zone_name
+
+	var zone_id_value = snapshot.get("zone_id", current_zone_id)
+	if zone_id_value is int:
+		set_zone(zone_id_value)
+
+	entities.clear()
+
+	var player_id = int(snapshot.get("player_entity_id", 0))
+	if player_id > 0:
+		set_player_entity(player_id)
+
+	for entity_data in snapshot.get("entities", []):
+		if typeof(entity_data) != TYPE_DICTIONARY:
+			continue
+		var entity_id = int(entity_data.get("id", 0))
+		if entity_id == 0:
+			continue
+		add_entity(entity_id, entity_data)
 
 func update_inventory(items: Array):
 	inventory = items

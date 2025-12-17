@@ -15,6 +15,7 @@ signal auth_failed(reason: String)
 signal character_list_received(characters: Array)
 signal character_created(character_data: Dictionary)
 signal character_selected(character_data: Dictionary)
+signal world_snapshot_received(snapshot: Dictionary)
 
 # Connection state
 enum ConnectionState {
@@ -147,6 +148,8 @@ func _process_incoming_message(message: Dictionary):
 			_handle_character_create_response(payload.CharacterCreateResponse)
 		elif payload.has("CharacterSelectResponse"):
 			_handle_character_select_response(payload.CharacterSelectResponse)
+		elif payload.has("WorldSnapshot"):
+			_handle_world_snapshot(payload.WorldSnapshot)
 		elif payload.has("Pong"):
 			_handle_pong(payload.Pong)
 		elif payload.has("Error"):
@@ -188,6 +191,9 @@ func _handle_character_select_response(response: Dictionary):
 		emit_signal("character_selected", response.character)
 	else:
 		emit_signal("connection_error", "Character selection failed")
+
+func _handle_world_snapshot(snapshot: Dictionary):
+	emit_signal("world_snapshot_received", snapshot)
 
 func _handle_error(error: Dictionary):
 	push_error("Server error: " + error.get("message", "Unknown error"))

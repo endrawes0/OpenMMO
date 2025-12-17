@@ -36,6 +36,10 @@ var movement_system = null
 var input_manager = null
 var ui_state_manager = null
 
+var _latest_character_data: Dictionary = {}
+var _pending_world_entry := false
+var _has_entered_world := false
+
 # UI state
 var ping_timer = null
 var connection_timer = null
@@ -124,6 +128,8 @@ func _initialize_modules():
 		client_networking.connect("character_created", Callable(self, "_on_character_created"))
 	if client_networking and not client_networking.is_connected("character_selected", Callable(self, "_on_character_selected")):
 		client_networking.connect("character_selected", Callable(self, "_on_character_selected"))
+	if client_networking and not client_networking.is_connected("world_snapshot_received", Callable(self, "_on_world_snapshot_received")):
+		client_networking.connect("world_snapshot_received", Callable(self, "_on_world_snapshot_received"))
 
 	if ui_state_manager and not ui_state_manager.is_connected("state_changed", Callable(self, "_on_ui_state_changed")):
 		ui_state_manager.connect("state_changed", Callable(self, "_on_ui_state_changed"))
@@ -181,6 +187,10 @@ func _on_select_character_pressed():
 
 	var selected_character = characters[selected_index]
 	var character_id = selected_character.id
+
+	ui_state_manager.set_selected_character(character_id)
+	_latest_character_data = selected_character.duplicate(true)
+	_pending_world_entry = true
 
 	_clear_error()
 	ui_state_manager.go_to_loading()
@@ -425,9 +435,37 @@ func _on_character_created(character_data: Dictionary):
 func _on_character_selected(character_data: Dictionary):
 	network_debug.add_message("Character selected: " + character_data.get("name", "Unknown"))
 	ui_state_manager.go_to_connected()
+	_latest_character_data = character_data.duplicate(true)
+	_pending_world_entry = true
 
-	# Transition to game world
-	_enter_game_world(character_data)
+func _on_world_snapshot_received(snapshot: Dictionary):
+	network_debug.add_message("World snapshot sync: " + str(snapshot.get("zone_name", "unknown")))
+	if game_state_manager:
+		game_state_manager.apply_world_snapshot(snapshot)
+	get_tree().set_meta("latest_world_snapshot", snapshot.duplicate(true))
+
+	if get_tree().current_scene == self and _pending_world_entry and not _has_entered_world:
+		var character_data = _latest_character_data
+		if character_data.is_empty():
+			character_data = _build_character_from_snapshot(snapshot)
+		_enter_game_world(character_data)
+
+func _build_character_from_snapshot(snapshot: Dictionary) -> Dictionary:
+	var player_id = int(snapshot.get("player_entity_id", 0))
+	for entity_data in snapshot.get("entities", []):
+		if int(entity_data.get("id", 0)) == player_id:
+			return {
+				"id": player_id,
+				"name": entity_data.get("state", {}).get("display_name", "Adventurer"),
+				"class": entity_data.get("entity_type", "Adventurer"),
+				"level": 1
+			}
+	return {
+		"id": player_id,
+		"name": "Adventurer",
+		"class": "Adventurer",
+		"level": 1
+	}
 
 # UI state management
 func _on_ui_state_changed(from_state, to_state):
@@ -512,23 +550,8 @@ func _enter_game_world(character_data: Dictionary):
 		ui_state_manager.go_to_character_select()
 		return
 
-	if game_state_manager:
-		var player_id = int(character_data.get("id", 0))
-		if player_id > 0:
-			game_state_manager.set_player_entity(player_id)
-			var starting_entity = {
-				"id": player_id,
-				"name": character_data.get("name", "Adventurer"),
-				"class": character_data.get("class", "Adventurer"),
-				"level": character_data.get("level", 1),
-				"position": {
-					"x": 0.0,
-					"y": 0.0,
-					"z": 0.0
-				},
-				"movement_state": "Idle"
-			}
-			game_state_manager.add_entity(player_id, starting_entity)
+	_pending_world_entry = false
+	_has_entered_world = true
 
 	var modules = get_tree().get_meta("session_modules", {})
 	modules["client_networking"] = client_networking
