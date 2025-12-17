@@ -45,16 +45,17 @@ radius = 0.4
 [node name="GameWorld" type="Node3D"]
 script = ExtResource("1_l7x5n")
 
-[node name="Environment" type="Node3D" parent="."]environment = SubResource("Environment_oq0su")
+[node name="Environment" type="Node3D" parent="."]
+environment = SubResource("Environment_oq0su")
 
 [node name="SunLight" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.939693, -0.17101, 0.296198, 0, 0.865926, 0.500171, -0.34202, -0.469846, 0.813798, 0, 18, 0)
+transform = Transform3D(0.939693, -0.17101, 0.296198, 0, 0.865926, 0.500171, -0.34202, 0.469846, 0.813798, 0, 18, 0)
 shadow_enabled = true
 light_energy = 2.0
 shadow_blur = 2.0
 
 [node name="Zone" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="Ground" type="MeshInstance3D" parent="Zone"]
 mesh = SubResource("PlaneMesh_4y3eb")
@@ -76,7 +77,7 @@ size = Vector3(4, 3, 80)
 material = SubResource("StandardMaterial3D_rock")
 
 [node name="CampRock" type="CSGBox3D" parent="Zone"]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -8, 0.7, 6)
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0, 0.707107, 0, 0.707107, -8, 0.7, 6)
 size = Vector3(3, 1.5, 3)
 material = SubResource("StandardMaterial3D_rock")
 smooth_faces = true
