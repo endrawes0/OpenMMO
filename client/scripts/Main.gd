@@ -53,11 +53,17 @@ func _ready():
 	print("OpenMMO Client Started")
 	network_debug.set_status("Disconnected")
 
-	# Set default server address
-	server_address.text = "ws://localhost:8080/ws"
-
-	# Initialize engine-agnostic modules
+	# Initialize engine-agnostic modules first
 	_initialize_modules()
+
+	# Set saved server address and username if available
+	if ui_state_manager.get_last_server_address():
+		server_address.text = ui_state_manager.get_last_server_address()
+	else:
+		server_address.text = "ws://localhost:8080/ws"
+	
+	if ui_state_manager.get_last_username():
+		username.text = ui_state_manager.get_last_username()
 
 	# Connect UI signals (only if not already connected)
 	if not login_button.is_connected("pressed", Callable(self, "_on_login_button_pressed")):
@@ -169,6 +175,7 @@ func _perform_authentication(is_register: bool):
 
 	# Store credentials for later use
 	ui_state_manager.set_last_username(user)
+	ui_state_manager.set_last_server_address(address)
 
 	# Initialize connection and attempt authentication
 	_connect_and_authenticate(address, user, passw, is_register)

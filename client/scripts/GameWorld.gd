@@ -1,6 +1,7 @@
 extends Node3D
 
-const MOVE_SPEED := 4.5
+const MOVE_SPEED := 6.48  # Increased by another 20% from 5.4
+const JUMP_SPEED := 8.0
 const ACCELERATION := 12.0
 const CAMERA_MIN_DISTANCE := 0.5  # First person distance
 const CAMERA_MAX_DISTANCE := 12.0
@@ -10,7 +11,7 @@ const CAMERA_SENSITIVITY := 0.005
 const CAMERA_ZOOM_STEP := 0.75
 const PLAYER_EYE_HEIGHT := 1.6
 
-@onready var gravity_value: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+@onready var gravity_value: float = ProjectSettings.get_setting("physics/3d/default_gravity") * 1.2  # Increased by 20%
 @onready var camera: Camera3D = $Camera3D
 @onready var player: CharacterBody3D = $Player
 @onready var spawn_point: Marker3D = $Zone/SpawnPoint
@@ -27,6 +28,7 @@ var camera_pitch: float = deg_to_rad(-30.0)
 var camera_orbit_offset: float = 0.0
 var left_dragging := false
 var right_dragging := false
+var jump_pressed := false
 
 func _ready() -> void:
 	_load_session_modules()
@@ -61,6 +63,10 @@ func _load_session_modules() -> void:
 	if input_manager:
 		if not input_manager.is_connected("movement_input_changed", Callable(self, "_on_movement_input_changed")):
 			input_manager.connect("movement_input_changed", Callable(self, "_on_movement_input_changed"))
+		if not input_manager.is_connected("jump_pressed", Callable(self, "_on_jump_pressed")):
+			input_manager.connect("jump_pressed", Callable(self, "_on_jump_pressed"))
+		if not input_manager.is_connected("jump_released", Callable(self, "_on_jump_released")):
+			input_manager.connect("jump_released", Callable(self, "_on_jump_released"))
 		if not input_manager.is_connected("action_pressed", Callable(self, "_on_action_pressed")):
 			input_manager.connect("action_pressed", Callable(self, "_on_action_pressed"))
 
@@ -134,7 +140,12 @@ func _update_player_movement(delta: float) -> void:
 	horizontal_velocity = horizontal_velocity.move_toward(target_velocity, ACCELERATION * delta)
 	player.velocity.x = horizontal_velocity.x
 	player.velocity.z = horizontal_velocity.z
-	player.velocity.y -= gravity_value * delta
+	
+	# Handle jumping
+	if jump_pressed and player.is_on_floor():
+		player.velocity.y = JUMP_SPEED
+	else:
+		player.velocity.y -= gravity_value * delta
 
 	player.move_and_slide()
 
@@ -191,7 +202,7 @@ func _update_mouse_mode() -> void:
 
 func _handle_camera_drag(relative: Vector2) -> void:
 	var horizontal_delta = -relative.x * CAMERA_SENSITIVITY
-	var vertical_delta = -relative.y * CAMERA_SENSITIVITY
+	var vertical_delta = relative.y * CAMERA_SENSITIVITY  # Invert up/down
 
 	if left_dragging:
 		# Left drag: revolve camera around player
@@ -212,6 +223,12 @@ func _on_movement_input_changed(input_vector: Vector2) -> void:
 	movement_input = input_vector
 	if movement_system:
 		movement_system.update(0.0, input_vector)
+
+func _on_jump_pressed() -> void:
+	jump_pressed = true
+
+func _on_jump_released() -> void:
+	jump_pressed = false
 
 func _on_action_pressed(action_name: String) -> void:
 	match action_name:

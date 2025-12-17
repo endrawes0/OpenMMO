@@ -29,10 +29,14 @@ var previous_state: UIState = UIState.LOGIN
 var available_characters: Array = []
 var selected_character_id: int = 0
 var last_username: String = ""
+var last_server_address: String = ""
 var last_error_message: String = ""
 
+# File paths for persistence
+const CONFIG_FILE = "user://connection_config.json"
+
 func _init():
-	pass
+	_load_connection_config()
 
 func change_state(new_state: UIState):
 	if new_state == current_state:
@@ -71,9 +75,17 @@ func get_selected_character() -> Dictionary:
 
 func set_last_username(username: String):
 	last_username = username
+	_save_connection_config()
 
 func get_last_username() -> String:
 	return last_username
+
+func set_last_server_address(address: String):
+	last_server_address = address
+	_save_connection_config()
+
+func get_last_server_address() -> String:
+	return last_server_address
 
 func set_error_message(message: String):
 	last_error_message = message
@@ -83,6 +95,34 @@ func get_error_message() -> String:
 
 func clear_error_message():
 	last_error_message = ""
+
+# Configuration persistence
+func _load_connection_config():
+	if FileAccess.file_exists(CONFIG_FILE):
+		var file = FileAccess.open(CONFIG_FILE, FileAccess.READ)
+		if file:
+			var json_text = file.get_as_text()
+			file.close()
+			
+			var json = JSON.new()
+			var parse_result = json.parse(json_text)
+			if parse_result == OK:
+				var data = json.data
+				if data.has("username"):
+					last_username = data.username
+				if data.has("server_address"):
+					last_server_address = data.server_address
+
+func _save_connection_config():
+	var data = {
+		"username": last_username,
+		"server_address": last_server_address
+	}
+	
+	var file = FileAccess.open(CONFIG_FILE, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data))
+		file.close()
 
 # State transition helpers
 func go_to_login():
