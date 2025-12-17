@@ -45,8 +45,7 @@ radius = 0.4
 [node name="GameWorld" type="Node3D"]
 script = ExtResource("1_l7x5n")
 
-[node name="Environment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_oq0su")
+[node name="Environment" type="Node3D" parent="."]environment = SubResource("Environment_oq0su")
 
 [node name="SunLight" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.939693, -0.17101, 0.296198, 0, 0.865926, 0.500171, -0.34202, -0.469846, 0.813798, 0, 18, 0)

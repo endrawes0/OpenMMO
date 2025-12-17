@@ -562,9 +562,11 @@ func _enter_game_world(character_data: Dictionary):
 	get_tree().set_meta("session_modules", modules)
 	get_tree().set_meta("selected_character", character_data.duplicate(true))
 
+	network_debug.add_message("Attempting to change scene to GameWorld.tscn...")
 	var result = get_tree().change_scene_to_file("res://scenes/GameWorld.tscn")
+	network_debug.add_message("Scene change result: " + str(result))
 	if result != OK:
-		_show_error("Failed to enter game world")
+		_show_error("Failed to enter game world (error: " + str(result) + ")")
 		ui_state_manager.go_to_character_select()
 
 func _on_exit_button_pressed():
