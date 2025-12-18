@@ -8,6 +8,7 @@ extends RefCounted
 # Signals
 signal movement_input_changed(input_vector: Vector2)
 signal jump_pressed
+signal jump_released
 signal action_pressed(action_name: String)
 signal mouse_moved(relative: Vector2)
 
@@ -64,6 +65,7 @@ func process_input(event):
 					_update_movement_input(-Vector2.RIGHT)
 				KEY_SPACE:
 					jump_input_pressed = false
+					emit_signal("jump_released")
 
 	elif event is InputEventMouseButton:
 		if event.pressed:

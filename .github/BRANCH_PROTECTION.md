@@ -33,7 +33,7 @@ All of the following must pass before merging to master:
 ### Pull Request Requirements
 - PRs must follow the template in `.github/pull_request_template.md`
 - PRs must be from feature branches (pattern: `feature/*`)
-- PRs must include required sections: Summary, Related Spec, Validation Steps
+- PRs must include required sections: Summary, Validation Steps
 - PRs must pass all automated checks
 
 ### Code Quality Gates

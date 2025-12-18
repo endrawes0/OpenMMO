@@ -15,6 +15,7 @@ signal auth_failed(reason: String)
 signal character_list_received(characters: Array)
 signal character_created(character_data: Dictionary)
 signal character_selected(character_data: Dictionary)
+signal world_snapshot_received(snapshot: Dictionary)
 
 # Connection state
 enum ConnectionState {
@@ -29,6 +30,7 @@ var websocket: WebSocketPeer = null
 var sequence_id: int = 0
 var session_id: String = ""
 var player_id: int = 0
+const MAX_SIGNED_64: int = 9223372036854775807
 
 # Message queues
 var outgoing_queue: Array = []
@@ -147,6 +149,8 @@ func _process_incoming_message(message: Dictionary):
 			_handle_character_create_response(payload.CharacterCreateResponse)
 		elif payload.has("CharacterSelectResponse"):
 			_handle_character_select_response(payload.CharacterSelectResponse)
+		elif payload.has("WorldSnapshot"):
+			_handle_world_snapshot(payload.WorldSnapshot)
 		elif payload.has("Pong"):
 			_handle_pong(payload.Pong)
 		elif payload.has("Error"):
@@ -167,7 +171,7 @@ func _handle_pong(pong: Dictionary):
 func _handle_auth_response(response: Dictionary):
 	if response.success:
 		session_id = response.get("session_token", "")
-		player_id = response.get("player_id", 0)
+		player_id = _u64_to_int(response.get("player_id", 0))
 		emit_signal("auth_successful", response)
 	else:
 		emit_signal("auth_failed", response.get("message", "Authentication failed"))
@@ -189,6 +193,9 @@ func _handle_character_select_response(response: Dictionary):
 	else:
 		emit_signal("connection_error", "Character selection failed")
 
+func _handle_world_snapshot(snapshot: Dictionary):
+	emit_signal("world_snapshot_received", snapshot)
+
 func _handle_error(error: Dictionary):
 	push_error("Server error: " + error.get("message", "Unknown error"))
 	emit_signal("connection_error", error.get("message", "Unknown error"))
@@ -204,6 +211,14 @@ func get_session_id() -> String:
 
 func get_player_id() -> int:
 	return player_id
+
+func _u64_to_int(value) -> int:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return 0
+	var parsed = int(value)
+	if parsed < 0 or parsed > MAX_SIGNED_64:
+		return 0
+	return parsed
 
 # Authentication methods
 func send_login_request(username: String, password: String) -> Error:

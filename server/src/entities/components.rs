@@ -129,8 +129,8 @@ pub struct Equipment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Progression {
     pub level: u32,
-    pub experience: u32,
-    pub experience_to_next: u32,
+    pub experience: u64,
+    pub experience_to_next: u64,
 }
 
 /// Quest state component

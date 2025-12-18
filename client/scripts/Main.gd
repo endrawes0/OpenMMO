@@ -36,12 +36,17 @@ var movement_system = null
 var input_manager = null
 var ui_state_manager = null
 
+var _latest_character_data: Dictionary = {}
+var _pending_world_entry := false
+var _has_entered_world := false
+
 # UI state
 var ping_timer = null
 var connection_timer = null
 var auth_timer = null
 var ui_fallback_timer = null
 var current_screen = null
+const MAX_SIGNED_64: int = 9223372036854775807
 
 func _ready():
 	print("DEBUG: Main._ready() called")
@@ -49,11 +54,17 @@ func _ready():
 	print("OpenMMO Client Started")
 	network_debug.set_status("Disconnected")
 
-	# Set default server address
-	server_address.text = "ws://localhost:8080/ws"
-
-	# Initialize engine-agnostic modules
+	# Initialize engine-agnostic modules first
 	_initialize_modules()
+
+	# Set saved server address and username if available
+	if ui_state_manager.get_last_server_address():
+		server_address.text = ui_state_manager.get_last_server_address()
+	else:
+		server_address.text = "ws://localhost:8080/ws"
+	
+	if ui_state_manager.get_last_username():
+		username.text = ui_state_manager.get_last_username()
 
 	# Connect UI signals (only if not already connected)
 	if not login_button.is_connected("pressed", Callable(self, "_on_login_button_pressed")):
@@ -75,26 +86,61 @@ func _ready():
 	_update_ui_for_state(ui_state_manager.get_current_state())
 
 func _initialize_modules():
-	# Load engine-agnostic modules
-	client_networking = load("res://src/networking/client_networking.gd").new()
-	game_state_manager = load("res://src/gamestate/game_state_manager.gd").new()
-	movement_system = load("res://src/movement/movement_system.gd").new()
-	input_manager = load("res://src/input/input_manager.gd").new()
-	ui_state_manager = load("res://src/ui/ui_state_manager.gd").new()
+	var session_modules = {}
+	if get_tree().has_meta("session_modules"):
+		session_modules = get_tree().get_meta("session_modules")
 
-	# Connect signals
+	client_networking = session_modules.get("client_networking", null)
+	game_state_manager = session_modules.get("game_state_manager", null)
+	movement_system = session_modules.get("movement_system", null)
+	input_manager = session_modules.get("input_manager", null)
+	ui_state_manager = session_modules.get("ui_state_manager", null)
+
+	if client_networking == null:
+		client_networking = load("res://src/networking/client_networking.gd").new()
+	if game_state_manager == null:
+		game_state_manager = load("res://src/gamestate/game_state_manager.gd").new()
+	if movement_system == null:
+		movement_system = load("res://src/movement/movement_system.gd").new()
+	if input_manager == null:
+		input_manager = load("res://src/input/input_manager.gd").new()
+	if ui_state_manager == null:
+		ui_state_manager = load("res://src/ui/ui_state_manager.gd").new()
+
+	session_modules = {
+		"client_networking": client_networking,
+		"game_state_manager": game_state_manager,
+		"movement_system": movement_system,
+		"input_manager": input_manager,
+		"ui_state_manager": ui_state_manager
+	}
+	get_tree().set_meta("session_modules", session_modules)
+
 	print("DEBUG: Connecting client networking signals")
-	client_networking.connect("connected", Callable(self, "_on_network_connected"))
-	client_networking.connect("disconnected", Callable(self, "_on_network_disconnected"))
-	client_networking.connect("message_received", Callable(self, "_on_network_message_received"))
-	client_networking.connect("connection_error", Callable(self, "_on_network_error"))
-	client_networking.connect("auth_successful", Callable(self, "_on_auth_successful"))
-	client_networking.connect("auth_failed", Callable(self, "_on_auth_failed"))
-	client_networking.connect("character_list_received", Callable(self, "_on_character_list_received"))
-	client_networking.connect("character_created", Callable(self, "_on_character_created"))
-	client_networking.connect("character_selected", Callable(self, "_on_character_selected"))
+	if client_networking and not client_networking.is_connected("connected", Callable(self, "_on_network_connected")):
+		client_networking.connect("connected", Callable(self, "_on_network_connected"))
+	if client_networking and not client_networking.is_connected("disconnected", Callable(self, "_on_network_disconnected")):
+		client_networking.connect("disconnected", Callable(self, "_on_network_disconnected"))
+	if client_networking and not client_networking.is_connected("message_received", Callable(self, "_on_network_message_received")):
+		client_networking.connect("message_received", Callable(self, "_on_network_message_received"))
+	if client_networking and not client_networking.is_connected("connection_error", Callable(self, "_on_network_error")):
+		client_networking.connect("connection_error", Callable(self, "_on_network_error"))
+	if client_networking and not client_networking.is_connected("auth_successful", Callable(self, "_on_auth_successful")):
+		client_networking.connect("auth_successful", Callable(self, "_on_auth_successful"))
+	if client_networking and not client_networking.is_connected("auth_failed", Callable(self, "_on_auth_failed")):
+		client_networking.connect("auth_failed", Callable(self, "_on_auth_failed"))
+	if client_networking and not client_networking.is_connected("character_list_received", Callable(self, "_on_character_list_received")):
+		client_networking.connect("character_list_received", Callable(self, "_on_character_list_received"))
+	if client_networking and not client_networking.is_connected("character_created", Callable(self, "_on_character_created")):
+		client_networking.connect("character_created", Callable(self, "_on_character_created"))
+	if client_networking and not client_networking.is_connected("character_selected", Callable(self, "_on_character_selected")):
+		client_networking.connect("character_selected", Callable(self, "_on_character_selected"))
+	if client_networking and not client_networking.is_connected("world_snapshot_received", Callable(self, "_on_world_snapshot_received")):
+		client_networking.connect("world_snapshot_received", Callable(self, "_on_world_snapshot_received"))
 
-	ui_state_manager.connect("state_changed", Callable(self, "_on_ui_state_changed"))
+	if ui_state_manager and not ui_state_manager.is_connected("state_changed", Callable(self, "_on_ui_state_changed")):
+		ui_state_manager.connect("state_changed", Callable(self, "_on_ui_state_changed"))
+
 	print("DEBUG: Signal connections completed")
 
 func _process(_delta):
@@ -130,6 +176,7 @@ func _perform_authentication(is_register: bool):
 
 	# Store credentials for later use
 	ui_state_manager.set_last_username(user)
+	ui_state_manager.set_last_server_address(address)
 
 	# Initialize connection and attempt authentication
 	_connect_and_authenticate(address, user, passw, is_register)
@@ -148,6 +195,10 @@ func _on_select_character_pressed():
 
 	var selected_character = characters[selected_index]
 	var character_id = selected_character.id
+
+	ui_state_manager.set_selected_character(character_id)
+	_latest_character_data = selected_character.duplicate(true)
+	_pending_world_entry = true
 
 	_clear_error()
 	ui_state_manager.go_to_loading()
@@ -379,6 +430,9 @@ func _on_character_list_received(characters: Array):
 
 	# Always go to character select state first
 	ui_state_manager.go_to_character_select()
+	
+	# Populate the character list UI
+	_populate_character_list()
 
 func _on_character_created(character_data: Dictionary):
 	network_debug.add_message("Character created: " + character_data.get("name", "Unknown"))
@@ -392,9 +446,45 @@ func _on_character_created(character_data: Dictionary):
 func _on_character_selected(character_data: Dictionary):
 	network_debug.add_message("Character selected: " + character_data.get("name", "Unknown"))
 	ui_state_manager.go_to_connected()
+	_latest_character_data = character_data.duplicate(true)
+	_pending_world_entry = true
 
-	# Transition to game world
-	_enter_game_world(character_data)
+func _on_world_snapshot_received(snapshot: Dictionary):
+	network_debug.add_message("World snapshot sync: " + str(snapshot.get("zone_name", "unknown")))
+	if game_state_manager:
+		game_state_manager.apply_world_snapshot(snapshot)
+	get_tree().set_meta("latest_world_snapshot", snapshot.duplicate(true))
+
+	if get_tree().current_scene == self and _pending_world_entry and not _has_entered_world:
+		var character_data = _latest_character_data
+		if character_data.is_empty():
+			character_data = _build_character_from_snapshot(snapshot)
+		_enter_game_world(character_data)
+
+func _build_character_from_snapshot(snapshot: Dictionary) -> Dictionary:
+	var player_id = _u64_to_int(snapshot.get("player_entity_id", 0))
+	for entity_data in snapshot.get("entities", []):
+		if _u64_to_int(entity_data.get("id", 0)) == player_id:
+			return {
+				"id": player_id,
+				"name": entity_data.get("state", {}).get("display_name", "Adventurer"),
+				"class": entity_data.get("entity_type", "Adventurer"),
+				"level": 1
+			}
+	return {
+		"id": player_id,
+		"name": "Adventurer",
+		"class": "Adventurer",
+		"level": 1
+	}
+
+func _u64_to_int(value) -> int:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return 0
+	var parsed = int(value)
+	if parsed < 0 or parsed > MAX_SIGNED_64:
+		return 0
+	return parsed
 
 # UI state management
 func _on_ui_state_changed(from_state, to_state):
@@ -474,8 +564,35 @@ func _clear_error():
 
 func _enter_game_world(character_data: Dictionary):
 	network_debug.add_message("Entering game world...")
-	# TODO: Transition to GameWorld scene
-	# get_tree().change_scene_to_file("res://scenes/GameWorld.tscn")
+	if character_data.is_empty():
+		_show_error("Missing character data")
+		ui_state_manager.go_to_character_select()
+		return
+
+	_pending_world_entry = false
+	_has_entered_world = true
+
+	var modules = get_tree().get_meta("session_modules", {})
+	modules["client_networking"] = client_networking
+	modules["game_state_manager"] = game_state_manager
+	modules["movement_system"] = movement_system
+	modules["input_manager"] = input_manager
+	modules["ui_state_manager"] = ui_state_manager
+	get_tree().set_meta("session_modules", modules)
+	get_tree().set_meta("selected_character", character_data.duplicate(true))
+
+	network_debug.add_message("Attempting to change scene to GameWorld.tscn...")
+	var game_world_scene = load("res://scenes/GameWorld.tscn")
+	if game_world_scene == null:
+		_show_error("Failed to load GameWorld scene")
+		ui_state_manager.go_to_character_select()
+		return
+	
+	var result = get_tree().change_scene_to_packed(game_world_scene)
+	network_debug.add_message("Scene change result: " + str(result))
+	if result != OK:
+		_show_error("Failed to enter game world (error: " + str(result) + ")")
+		ui_state_manager.go_to_character_select()
 
 func _on_exit_button_pressed():
 	print("Exit button pressed")

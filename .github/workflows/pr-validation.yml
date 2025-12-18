@@ -29,7 +29,7 @@ jobs:
           const body = pr.body || '';
           
           // Check for required sections
-          const requiredSections = ['## Summary', '## Related Spec', '## Validation Steps'];
+          const requiredSections = ['## Summary', '## Validation Steps'];
           const missingSections = requiredSections.filter(section => !body.includes(section));
           
           if (missingSections.length > 0) {

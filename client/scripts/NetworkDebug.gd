@@ -16,7 +16,7 @@ func _ready():
 
 func _process(_delta):
 	# Update ping display periodically (placeholder)
-	if Engine.get_process_frames() % 60 == 0:  # Every second at 60fps
+	if Engine.get_process_frames() % 600 == 0:  # Every second at 60fps
 		update_ping_placeholder()
 
 func set_status(status: String):
