@@ -9,6 +9,7 @@ mod network;
 mod simulation;
 mod world;
 
+use crate::network::messages::Envelope;
 use axum::{
     extract::{State, WebSocketUpgrade},
     http::StatusCode,
@@ -80,8 +81,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Start simulation loop in background
     let simulation_world_state = world_state.clone();
+    let simulation_session_store = state.session_store.clone();
     tokio::spawn(async move {
-        let mut simulation_loop = simulation::SimulationLoop::new(simulation_world_state);
+        let mut simulation_loop =
+            simulation::SimulationLoop::new(simulation_world_state, simulation_session_store);
         simulation_loop.run().await;
     });
 
@@ -139,9 +142,9 @@ async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Resp
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState) {
+async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     use axum::extract::ws::Message;
-    use futures_util::StreamExt;
+    use futures_util::{SinkExt, StreamExt};
     use network::messages::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -168,6 +171,24 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
         .authenticate_session(&session_id, Uuid::from_u128(1), player_id, None)
         .await; // Hardcode placeholder account ID until auth completes
 
+    let (mut ws_sender, mut ws_receiver) = socket.split();
+
+    let (outgoing_tx, mut outgoing_rx) = tokio::sync::mpsc::unbounded_channel::<Envelope>();
+    state
+        .session_store
+        .set_sender(&session_id, Some(outgoing_tx.clone()))
+        .await;
+
+    let send_task = tokio::spawn(async move {
+        while let Some(envelope) = outgoing_rx.recv().await {
+            if let Ok(json) = serde_json::to_string(&envelope) {
+                if ws_sender.send(Message::Text(json)).await.is_err() {
+                    break;
+                }
+            }
+        }
+    });
+
     // Send handshake response
     let handshake_response = Envelope {
         sequence_id: 1,
@@ -184,15 +205,12 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
         }),
     };
 
-    if let Ok(json) = serde_json::to_string(&handshake_response) {
-        if socket.send(Message::Text(json)).await.is_err() {
-            info!("Failed to send handshake response");
-            return;
-        }
+    if !send_session_envelope(&state, &session_id, handshake_response).await {
+        return;
     }
 
     // Handle incoming messages
-    while let Some(Ok(msg)) = socket.next().await {
+    while let Some(Ok(msg)) = ws_receiver.next().await {
         match msg {
             Message::Text(text) => {
                 info!("Received message: {}", text);
@@ -213,10 +231,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 }),
                             };
 
-                            if let Ok(json) = serde_json::to_string(&pong_response) {
-                                if socket.send(Message::Text(json)).await.is_err() {
-                                    break;
-                                }
+                            if !send_session_envelope(&state, &session_id, pong_response).await {
+                                break;
                             }
                         }
                         Payload::MovementIntent(movement) => {
@@ -326,8 +342,10 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                                 payload: Payload::AuthResponse(response),
                                             };
 
-                                            if let Ok(json) = serde_json::to_string(&envelope) {
-                                                let _ = socket.send(Message::Text(json)).await;
+                                            if !send_session_envelope(&state, &session_id, envelope)
+                                                .await
+                                            {
+                                                break;
                                             }
 
                                             continue;
@@ -369,10 +387,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 payload: Payload::AuthResponse(auth_response),
                             };
 
-                            if let Ok(json) = serde_json::to_string(&response) {
-                                if socket.send(Message::Text(json)).await.is_err() {
-                                    break;
-                                }
+                            if !send_session_envelope(&state, &session_id, response).await {
+                                break;
                             }
                         }
                         Payload::CharacterCreateRequest(create_req) => {
@@ -398,8 +414,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     payload: Payload::CharacterCreateResponse(error_response),
                                 };
 
-                                if let Ok(json) = serde_json::to_string(&response) {
-                                    let _ = socket.send(Message::Text(json)).await;
+                                if !send_session_envelope(&state, &session_id, response).await {
+                                    break;
                                 }
                                 continue;
                             };
@@ -423,8 +439,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     payload: Payload::CharacterCreateResponse(error_response),
                                 };
 
-                                if let Ok(json) = serde_json::to_string(&response) {
-                                    let _ = socket.send(Message::Text(json)).await;
+                                if !send_session_envelope(&state, &session_id, response).await {
+                                    break;
                                 }
                                 continue;
                             };
@@ -505,10 +521,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 payload: Payload::CharacterCreateResponse(create_response),
                             };
 
-                            if let Ok(json) = serde_json::to_string(&response) {
-                                if socket.send(Message::Text(json)).await.is_err() {
-                                    break;
-                                }
+                            if !send_session_envelope(&state, &session_id, response).await {
+                                break;
                             }
                         }
                         Payload::CharacterListRequest(_req) => {
@@ -535,8 +549,10 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                             payload: Payload::CharacterListResponse(error_response),
                                         };
 
-                                        if let Ok(json) = serde_json::to_string(&response) {
-                                            let _ = socket.send(Message::Text(json)).await;
+                                        if !send_session_envelope(&state, &session_id, response)
+                                            .await
+                                        {
+                                            break;
                                         }
                                         continue;
                                     }
@@ -556,8 +572,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                         payload: Payload::CharacterListResponse(error_response),
                                     };
 
-                                    if let Ok(json) = serde_json::to_string(&response) {
-                                        let _ = socket.send(Message::Text(json)).await;
+                                    if !send_session_envelope(&state, &session_id, response).await {
+                                        break;
                                     }
                                     continue;
                                 }
@@ -612,10 +628,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 payload: Payload::CharacterListResponse(character_list_response),
                             };
 
-                            if let Ok(json) = serde_json::to_string(&response) {
-                                if socket.send(Message::Text(json)).await.is_err() {
-                                    break;
-                                }
+                            if !send_session_envelope(&state, &session_id, response).await {
+                                break;
                             }
                         }
                         Payload::CharacterSelectRequest(select_req) => {
@@ -648,8 +662,10 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                             ),
                                         };
 
-                                        if let Ok(json) = serde_json::to_string(&response) {
-                                            let _ = socket.send(Message::Text(json)).await;
+                                        if !send_session_envelope(&state, &session_id, response)
+                                            .await
+                                        {
+                                            break;
                                         }
                                         continue;
                                     }
@@ -672,8 +688,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                         payload: Payload::CharacterSelectResponse(error_response),
                                     };
 
-                                    if let Ok(json) = serde_json::to_string(&response) {
-                                        let _ = socket.send(Message::Text(json)).await;
+                                    if !send_session_envelope(&state, &session_id, response).await {
+                                        break;
                                     }
                                     continue;
                                 }
@@ -705,8 +721,8 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                         payload: Payload::CharacterSelectResponse(error_response),
                                     };
 
-                                    if let Ok(json) = serde_json::to_string(&response) {
-                                        let _ = socket.send(Message::Text(json)).await;
+                                    if !send_session_envelope(&state, &session_id, response).await {
+                                        break;
                                     }
                                     continue;
                                 }
@@ -811,23 +827,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 ),
                             };
 
-                            let mut response_failed = false;
-                            match serde_json::to_string(&response) {
-                                Ok(json) => {
-                                    if socket.send(Message::Text(json)).await.is_err() {
-                                        response_failed = true;
-                                    }
-                                }
-                                Err(err) => {
-                                    error!(
-                                        "Failed to serialize character select response for session {}: {:?}",
-                                        session_id, err
-                                    );
-                                    response_failed = true;
-                                }
-                            }
-
-                            if response_failed {
+                            if !send_session_envelope(&state, &session_id, response).await {
                                 break;
                             }
 
@@ -842,19 +842,10 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     payload: Payload::WorldSnapshot(snapshot),
                                 };
 
-                                match serde_json::to_string(&snapshot_envelope) {
-                                    Ok(json) => {
-                                        if socket.send(Message::Text(json)).await.is_err() {
-                                            break;
-                                        }
-                                    }
-                                    Err(err) => {
-                                        error!(
-                                            "Failed to serialize world snapshot for session {}: {:?}",
-                                            session_id, err
-                                        );
-                                        break;
-                                    }
+                                if !send_session_envelope(&state, &session_id, snapshot_envelope)
+                                    .await
+                                {
+                                    break;
                                 }
                             }
                         }
@@ -878,9 +869,27 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
         }
     }
 
+    state.session_store.set_sender(&session_id, None).await;
+    drop(outgoing_tx);
+    let _ = send_task.await;
+
     // Clean up session on disconnect
     state.session_store.remove_session(&session_id).await;
     info!("Session cleaned up: {}", session_id);
+}
+
+async fn send_session_envelope(state: &AppState, session_id: &Uuid, envelope: Envelope) -> bool {
+    match state
+        .session_store
+        .send_envelope(session_id, envelope)
+        .await
+    {
+        Ok(_) => true,
+        Err(err) => {
+            error!("Failed to send envelope to {}: {:?}", session_id, err);
+            false
+        }
+    }
 }
 
 fn build_player_world_snapshot(

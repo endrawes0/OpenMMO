@@ -184,8 +184,22 @@ impl AccountService {
         let character = sqlx::query_as!(
             Character,
             r#"
-            INSERT INTO characters (account_id, name, class, health, max_health, resource_type, resource_value, max_resource)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO characters (
+                account_id,
+                name,
+                class,
+                health,
+                max_health,
+                resource_type,
+                resource_value,
+                max_resource,
+                zone_id,
+                position_x,
+                position_y,
+                position_z,
+                rotation
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'starter_zone', 0.0, 2.0, 12.0, 0.0)
             RETURNING id, account_id, name, class, level, experience, zone_id,
                       position_x, position_y, position_z, rotation,
                       health, max_health, resource_type, resource_value, max_resource,

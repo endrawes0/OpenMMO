@@ -1,7 +1,9 @@
 pub mod messages;
 
+use crate::network::messages::Envelope;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::mpsc::{error::SendError, UnboundedSender};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -19,6 +21,7 @@ pub struct Session {
     pub character_id_map: HashMap<u64, Uuid>,
     pub reverse_character_map: HashMap<Uuid, u64>,
     pub next_character_numeric_id: u64,
+    pub sender: Option<UnboundedSender<Envelope>>,
 }
 
 /// Movement intent from a client
@@ -56,6 +59,7 @@ impl SessionStore {
             character_id_map: HashMap::new(),
             reverse_character_map: HashMap::new(),
             next_character_numeric_id: 1,
+            sender: None,
         };
 
         let mut sessions = self.sessions.write().await;
@@ -91,6 +95,32 @@ impl SessionStore {
             session.player_id = Some(player_id);
             session.character_id = character_id;
             self.update_session(session).await;
+        }
+    }
+
+    pub async fn set_sender(&self, session_id: &Uuid, sender: Option<UnboundedSender<Envelope>>) {
+        let mut sessions = self.sessions.write().await;
+        if let Some(session) = sessions.get_mut(session_id) {
+            session.sender = sender;
+        }
+    }
+
+    pub async fn get_sender(&self, session_id: &Uuid) -> Option<UnboundedSender<Envelope>> {
+        let sessions = self.sessions.read().await;
+        sessions
+            .get(session_id)
+            .and_then(|session| session.sender.clone())
+    }
+
+    pub async fn send_envelope(
+        &self,
+        session_id: &Uuid,
+        envelope: Envelope,
+    ) -> Result<(), SendError<Envelope>> {
+        if let Some(sender) = self.get_sender(session_id).await {
+            sender.send(envelope)
+        } else {
+            Err(SendError(envelope))
         }
     }
 
