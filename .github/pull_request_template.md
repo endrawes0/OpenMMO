@@ -1,11 +1,6 @@
 ## Summary
 <!-- Brief description of the work (1-2 sentences) -->
 
-## Related Spec
-<!-- Reference to the specific section or task ID from open_mmorpg_mvp_specification.md -->
-- Spec section: 
-- Task ID: 
-
 ## Validation Steps
 <!-- How reviewers can run or test this change -->
 1. 
