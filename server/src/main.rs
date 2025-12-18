@@ -269,12 +269,16 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                             // Handle authentication request
                             let auth_result = if auth.character_name.is_some() {
                                 // Treat presence of character name as login attempt
+                                // This is a login request (character_name is provided for login)
                                 state
                                     .account_service
                                     .authenticate(&auth.username, &auth.password_hash)
                                     .await
                             } else {
                                 // Registration flow: try auth, then auto-register if needed
+                                // This is a registration request (no character_name means register)
+                                // For registration, we need an email, but the client doesn't provide one
+                                // For MVP, we'll treat this as login and auto-create account if it doesn't exist
                                 match state
                                     .account_service
                                     .authenticate(&auth.username, &auth.password_hash)
@@ -282,6 +286,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 {
                                     Ok(account) => Ok(account),
                                     Err(_) => {
+                                        // Try to register the account
                                         state
                                             .account_service
                                             .register(
@@ -296,6 +301,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
 
                             let auth_response = match auth_result {
                                 Ok(account) => {
+                                    // Update session with account info
                                     let player_id_u64 = account.id.as_u128() as u64;
                                     state
                                         .session_store
