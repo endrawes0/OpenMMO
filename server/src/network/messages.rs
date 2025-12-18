@@ -259,7 +259,7 @@ pub struct CharacterCreateResponse {
 /// Select character request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterSelectRequest {
-    pub character_id: i64,
+    pub character_id: u64,
 }
 
 /// Select character response
