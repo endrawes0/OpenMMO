@@ -20,6 +20,7 @@ var player_stats: Dictionary = {}
 var inventory: Array = []
 var equipment: Dictionary = {}
 var last_world_snapshot: Dictionary = {}
+const MAX_SIGNED_64: int = 9223372036854775807
 
 func _init():
 	_reset_state()
@@ -112,14 +113,14 @@ func apply_world_snapshot(snapshot: Dictionary):
 
 	entities.clear()
 
-	var player_id = int(snapshot.get("player_entity_id", 0))
+	var player_id = _u64_to_int(snapshot.get("player_entity_id", 0))
 	if player_id > 0:
 		set_player_entity(player_id)
 
 	for entity_data in snapshot.get("entities", []):
 		if typeof(entity_data) != TYPE_DICTIONARY:
 			continue
-		var entity_id = int(entity_data.get("id", 0))
+		var entity_id = _u64_to_int(entity_data.get("id", 0))
 		if entity_id == 0:
 			continue
 		add_entity(entity_id, entity_data)
@@ -156,3 +157,11 @@ func set_entity_position(entity_id: int, position: Vector3):
 			"z": position.z
 		}
 		update_entity(entity_id, entity)
+
+func _u64_to_int(value) -> int:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return 0
+	var parsed = int(value)
+	if parsed < 0 or parsed > MAX_SIGNED_64:
+		return 0
+	return parsed

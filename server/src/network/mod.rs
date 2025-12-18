@@ -5,6 +5,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+const MAX_SYNTHETIC_ID: u64 = i64::MAX as u64;
+
 /// Session represents a connected client
 #[derive(Debug, Clone)]
 pub struct Session {
@@ -92,6 +94,18 @@ impl SessionStore {
         }
     }
 
+    pub async fn allocate_player_id(&self, session_id: &Uuid) -> Option<u64> {
+        let mut sessions = self.sessions.write().await;
+        let session = sessions.get_mut(session_id)?;
+        if let Some(existing) = session.player_id {
+            return Some(existing);
+        }
+
+        let synthetic_id = session.next_synthetic_id()?;
+        session.player_id = Some(synthetic_id);
+        Some(synthetic_id)
+    }
+
     pub async fn map_character_id(&self, session_id: &Uuid, character_uuid: Uuid) -> Option<u64> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(session_id)?;
@@ -99,8 +113,7 @@ impl SessionStore {
             return Some(*existing);
         }
 
-        let synthetic_id = session.next_character_numeric_id;
-        session.next_character_numeric_id = session.next_character_numeric_id.saturating_add(1);
+        let synthetic_id = session.next_synthetic_id()?;
         session
             .character_id_map
             .insert(synthetic_id, character_uuid);
@@ -119,6 +132,17 @@ impl SessionStore {
     pub async fn get_active_sessions(&self) -> Vec<Session> {
         let sessions = self.sessions.read().await;
         sessions.values().cloned().collect()
+    }
+}
+
+impl Session {
+    fn next_synthetic_id(&mut self) -> Option<u64> {
+        if self.next_character_numeric_id > MAX_SYNTHETIC_ID {
+            return None;
+        }
+        let synthetic_id = self.next_character_numeric_id;
+        self.next_character_numeric_id = self.next_character_numeric_id.saturating_add(1);
+        Some(synthetic_id)
     }
 }
 

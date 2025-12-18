@@ -16,6 +16,7 @@ use axum::{
     routing::get,
     Router,
 };
+use db::conversions::{CharacterWireView, ConversionError};
 use serde_json::json;
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -269,16 +270,12 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                             // Handle authentication request
                             let auth_result = if auth.character_name.is_some() {
                                 // Treat presence of character name as login attempt
-                                // This is a login request (character_name is provided for login)
                                 state
                                     .account_service
                                     .authenticate(&auth.username, &auth.password_hash)
                                     .await
                             } else {
                                 // Registration flow: try auth, then auto-register if needed
-                                // This is a registration request (no character_name means register)
-                                // For registration, we need an email, but the client doesn't provide one
-                                // For MVP, we'll treat this as login and auto-create account if it doesn't exist
                                 match state
                                     .account_service
                                     .authenticate(&auth.username, &auth.password_hash)
@@ -286,7 +283,6 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                 {
                                     Ok(account) => Ok(account),
                                     Err(_) => {
-                                        // Try to register the account
                                         state
                                             .account_service
                                             .register(
@@ -301,8 +297,42 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
 
                             let auth_response = match auth_result {
                                 Ok(account) => {
-                                    // Update session with account info
-                                    let player_id_u64 = account.id.as_u128() as u64;
+                                    let player_id_u64 = match state
+                                        .session_store
+                                        .allocate_player_id(&session_id)
+                                        .await
+                                    {
+                                        Some(id) => id,
+                                        None => {
+                                            error!(
+                                                "Failed to allocate synthetic player id for session {}",
+                                                session_id
+                                            );
+                                            let response = network::messages::AuthResponse {
+                                                success: false,
+                                                session_token: None,
+                                                message: "Internal server error".to_string(),
+                                                player_id: None,
+                                                character_id: None,
+                                            };
+
+                                            let envelope = Envelope {
+                                                sequence_id: envelope.sequence_id,
+                                                timestamp: SystemTime::now()
+                                                    .duration_since(UNIX_EPOCH)
+                                                    .unwrap()
+                                                    .as_millis()
+                                                    as u64,
+                                                payload: Payload::AuthResponse(response),
+                                            };
+
+                                            if let Ok(json) = serde_json::to_string(&envelope) {
+                                                let _ = socket.send(Message::Text(json)).await;
+                                            }
+
+                                            continue;
+                                        }
+                                    };
                                     state
                                         .session_store
                                         .authenticate_session(
@@ -415,23 +445,31 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                     .await
                                 {
                                     Some(synthetic_id) => {
-                                        network::messages::CharacterCreateResponse {
-                                            success: true,
-                                            character: Some(network::messages::CharacterInfo {
-                                                id: synthetic_id,
-                                                name: character.name,
-                                                class: character.class,
-                                                level: character.level as u32,
-                                                experience: character.experience as u64,
-                                                zone_id: character.zone_id,
-                                                health: character.health as u32,
-                                                max_health: character.max_health as u32,
-                                                resource_type: character.resource_type,
-                                                resource_value: character.resource_value as u32,
-                                                max_resource: character.max_resource as u32,
-                                                is_online: character.is_online,
-                                            }),
-                                            error_message: None,
+                                        match build_character_info(
+                                            &character,
+                                            synthetic_id,
+                                            character.is_online,
+                                        ) {
+                                            Ok(info) => {
+                                                network::messages::CharacterCreateResponse {
+                                                    success: true,
+                                                    character: Some(info),
+                                                    error_message: None,
+                                                }
+                                            }
+                                            Err(err) => {
+                                                error!(
+                                                    "Invalid character data for session {}: {}",
+                                                    session_id, err
+                                                );
+                                                network::messages::CharacterCreateResponse {
+                                                    success: false,
+                                                    character: None,
+                                                    error_message: Some(
+                                                        "Invalid character data".to_string(),
+                                                    ),
+                                                }
+                                            }
                                         }
                                     }
                                     None => {
@@ -538,20 +576,17 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                             .await
                                         {
                                             Some(synthetic_id) => {
-                                                infos.push(network::messages::CharacterInfo {
-                                                    id: synthetic_id,
-                                                    name: character.name,
-                                                    class: character.class,
-                                                    level: character.level as u32,
-                                                    experience: character.experience as u64,
-                                                    zone_id: character.zone_id,
-                                                    health: character.health as u32,
-                                                    max_health: character.max_health as u32,
-                                                    resource_type: character.resource_type,
-                                                    resource_value: character.resource_value as u32,
-                                                    max_resource: character.max_resource as u32,
-                                                    is_online: character.is_online,
-                                                })
+                                                match build_character_info(
+                                                    &character,
+                                                    synthetic_id,
+                                                    character.is_online,
+                                                ) {
+                                                    Ok(info) => infos.push(info),
+                                                    Err(err) => error!(
+                                                        "Invalid character data for session {}: {}",
+                                                        session_id, err
+                                                    ),
+                                                }
                                             }
                                             None => error!(
                                                 "Failed to map character id for session {}",
@@ -719,23 +754,31 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                                                 select_req.character_id,
                                             ));
 
-                                            network::messages::CharacterSelectResponse {
-                                                success: true,
-                                                character: Some(network::messages::CharacterInfo {
-                                                    id: select_req.character_id,
-                                                    name: character.name,
-                                                    class: character.class,
-                                                    level: character.level as u32,
-                                                    experience: character.experience as u64,
-                                                    zone_id: character.zone_id,
-                                                    health: character.health as u32,
-                                                    max_health: character.max_health as u32,
-                                                    resource_type: character.resource_type,
-                                                    resource_value: character.resource_value as u32,
-                                                    max_resource: character.max_resource as u32,
-                                                    is_online: true,
-                                                }),
-                                                error_message: None,
+                                            match build_character_info(
+                                                &character,
+                                                select_req.character_id,
+                                                true,
+                                            ) {
+                                                Ok(info) => {
+                                                    network::messages::CharacterSelectResponse {
+                                                        success: true,
+                                                        character: Some(info),
+                                                        error_message: None,
+                                                    }
+                                                }
+                                                Err(err) => {
+                                                    error!(
+                                                        "Invalid character data for session {}: {}",
+                                                        session_id, err
+                                                    );
+                                                    network::messages::CharacterSelectResponse {
+                                                        success: false,
+                                                        character: None,
+                                                        error_message: Some(
+                                                            "Invalid character data".to_string(),
+                                                        ),
+                                                    }
+                                                }
                                             }
                                         }
                                         None => network::messages::CharacterSelectResponse {
@@ -859,6 +902,28 @@ fn build_player_world_snapshot(
         player_entity_id: synthetic_player_id,
         zone_name: character.zone_id.clone(),
     }
+}
+
+fn build_character_info(
+    character: &db::models::Character,
+    synthetic_id: u64,
+    is_online: bool,
+) -> Result<network::messages::CharacterInfo, ConversionError> {
+    let wire = CharacterWireView::try_from(character)?;
+    Ok(network::messages::CharacterInfo {
+        id: synthetic_id,
+        name: character.name.clone(),
+        class: character.class.clone(),
+        level: wire.level,
+        experience: wire.experience,
+        zone_id: character.zone_id.clone(),
+        health: wire.health,
+        max_health: wire.max_health,
+        resource_type: character.resource_type.clone(),
+        resource_value: wire.resource_value,
+        max_resource: wire.max_resource,
+        is_online,
+    })
 }
 
 fn build_player_entity(

@@ -10,6 +10,7 @@ const CAMERA_MAX_PITCH := deg_to_rad(60.0)   # 60 degrees above player
 const CAMERA_SENSITIVITY := 0.005
 const CAMERA_ZOOM_STEP := 0.75
 const PLAYER_EYE_HEIGHT := 1.6
+const MAX_SIGNED_64: int = 9223372036854775807
 
 @onready var gravity_value: float = ProjectSettings.get_setting("physics/3d/default_gravity") * 1.2  # Increased by 20%
 @onready var camera: Camera3D = $Camera3D
@@ -75,9 +76,9 @@ func _load_character_data() -> void:
 		character_data = get_tree().get_meta("selected_character")
 	elif get_tree().has_meta("latest_world_snapshot"):
 		var snapshot = get_tree().get_meta("latest_world_snapshot")
-		var player_id = int(snapshot.get("player_entity_id", 0))
+		var player_id = _u64_to_int(snapshot.get("player_entity_id", 0))
 		for entity_data in snapshot.get("entities", []):
-			if int(entity_data.get("id", 0)) == player_id:
+			if _u64_to_int(entity_data.get("id", 0)) == player_id:
 				character_data = {
 					"id": player_id,
 					"name": entity_data.get("state", {}).get("display_name", "Adventurer"),
@@ -99,7 +100,7 @@ func _initialize_player() -> void:
 	if movement_system:
 		movement_system.set_target_position(player.global_position)
 	if game_state_manager:
-		var player_id = int(character_data.get("id", 0))
+		var player_id = _u64_to_int(character_data.get("id", 0))
 		if player_id > 0:
 			game_state_manager.set_player_entity(player_id)
 			var starting_entity = {
@@ -115,6 +116,14 @@ func _initialize_player() -> void:
 				"movement_state": "Idle"
 			}
 			game_state_manager.add_entity(player_id, starting_entity)
+
+func _u64_to_int(value) -> int:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return 0
+	var parsed = int(value)
+	if parsed < 0 or parsed > MAX_SIGNED_64:
+		return 0
+	return parsed
 
 func _configure_camera_defaults() -> void:
 	camera_distance = clamp(camera_distance, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE)

@@ -46,6 +46,7 @@ var connection_timer = null
 var auth_timer = null
 var ui_fallback_timer = null
 var current_screen = null
+const MAX_SIGNED_64: int = 9223372036854775807
 
 func _ready():
 	print("DEBUG: Main._ready() called")
@@ -461,9 +462,9 @@ func _on_world_snapshot_received(snapshot: Dictionary):
 		_enter_game_world(character_data)
 
 func _build_character_from_snapshot(snapshot: Dictionary) -> Dictionary:
-	var player_id = int(snapshot.get("player_entity_id", 0))
+	var player_id = _u64_to_int(snapshot.get("player_entity_id", 0))
 	for entity_data in snapshot.get("entities", []):
-		if int(entity_data.get("id", 0)) == player_id:
+		if _u64_to_int(entity_data.get("id", 0)) == player_id:
 			return {
 				"id": player_id,
 				"name": entity_data.get("state", {}).get("display_name", "Adventurer"),
@@ -476,6 +477,14 @@ func _build_character_from_snapshot(snapshot: Dictionary) -> Dictionary:
 		"class": "Adventurer",
 		"level": 1
 	}
+
+func _u64_to_int(value) -> int:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return 0
+	var parsed = int(value)
+	if parsed < 0 or parsed > MAX_SIGNED_64:
+		return 0
+	return parsed
 
 # UI state management
 func _on_ui_state_changed(from_state, to_state):

@@ -30,6 +30,7 @@ var websocket: WebSocketPeer = null
 var sequence_id: int = 0
 var session_id: String = ""
 var player_id: int = 0
+const MAX_SIGNED_64: int = 9223372036854775807
 
 # Message queues
 var outgoing_queue: Array = []
@@ -170,7 +171,7 @@ func _handle_pong(pong: Dictionary):
 func _handle_auth_response(response: Dictionary):
 	if response.success:
 		session_id = response.get("session_token", "")
-		player_id = response.get("player_id", 0)
+		player_id = _u64_to_int(response.get("player_id", 0))
 		emit_signal("auth_successful", response)
 	else:
 		emit_signal("auth_failed", response.get("message", "Authentication failed"))
@@ -210,6 +211,14 @@ func get_session_id() -> String:
 
 func get_player_id() -> int:
 	return player_id
+
+func _u64_to_int(value) -> int:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return 0
+	var parsed = int(value)
+	if parsed < 0 or parsed > MAX_SIGNED_64:
+		return 0
+	return parsed
 
 # Authentication methods
 func send_login_request(username: String, password: String) -> Error:

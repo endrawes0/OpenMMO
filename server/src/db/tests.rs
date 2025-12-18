@@ -96,4 +96,36 @@ mod tests {
         let error = DatabaseError::AccountNotFound;
         assert_eq!(error.to_string(), "Account not found");
     }
+
+    #[test]
+    fn test_character_wire_view_conversion_rejects_negative() {
+        use crate::db::conversions::CharacterWireView;
+        use crate::db::models::Character;
+        use chrono::Utc;
+
+        let character = Character {
+            id: Uuid::new_v4(),
+            account_id: Uuid::new_v4(),
+            name: "TestCharacter".to_string(),
+            class: "warrior".to_string(),
+            level: -1,
+            experience: -10,
+            zone_id: "starter_zone".to_string(),
+            position_x: 0.0,
+            position_y: 0.0,
+            position_z: 0.0,
+            rotation: 0.0,
+            health: -5,
+            max_health: 100,
+            resource_type: "rage".to_string(),
+            resource_value: 0,
+            max_resource: 100,
+            is_online: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_saved_at: Utc::now(),
+        };
+
+        assert!(CharacterWireView::try_from(&character).is_err());
+    }
 }

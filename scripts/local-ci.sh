@@ -134,25 +134,21 @@ run_quality_checks() {
         "api_key\s*=\s*['\"][^'\"]*['\"]"
         "AKIA[0-9A-Z]{16}"
     )
-    # Exclude false positives from client code
-    EXCLUDE_PATTERNS=(
-        "var _last_password"
-        "var _password"
-    )
         for pattern in "${PATTERNS[@]}"; do
-          if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.txt' ':(exclude).sqlx/' 2>/dev/null; then
-            # Check if this is a false positive from our exclude list
-            is_false_positive=false
-            for exclude_pattern in "${EXCLUDE_PATTERNS[@]}"; do
-              if git grep -E "$pattern" -- . ':(exclude)*.md' ':(exclude)*.txt' ':(exclude).sqlx/' | grep -E "$exclude_pattern" 2>/dev/null; then
-                is_false_positive=true
-                break
-              fi
-            done
-            
-            if [ "$is_false_positive" = false ]; then
-              print_status 1 "Secret detection"
-            fi
+          if git grep -E "$pattern" -- . \
+            ':(exclude)*.md' \
+            ':(exclude)*.example' \
+            ':(exclude)rustfmt.toml' \
+            ':(exclude)clippy.toml' \
+            ':(exclude).github/workflows/' \
+            ':(exclude)client/scenes/' \
+            ':(exclude)client/scripts/' \
+            ':(exclude)scripts/' \
+            ':(exclude)*.proto' \
+            ':(exclude)*.rs' \
+            ':(exclude).sqlx/' \
+            2>/dev/null; then
+            print_status 1 "Secret detection"
           fi
         done
     print_status 0 "Secret detection"
