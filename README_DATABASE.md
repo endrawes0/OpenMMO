@@ -145,7 +145,7 @@ docker-compose exec db psql -U openmmo_user -d openmmo
 
 ## 🧪 Testing
 
-The setup includes comprehensive tests:
+Lightweight database-related unit tests are included (no live Postgres required):
 
 ```bash
 # Run all tests
@@ -159,10 +159,12 @@ cargo test test_database_connection_string_parsing
 ```
 
 ### Test Coverage
-- Database connection string parsing
-- Model serialization/deserialization
-- Error handling
-- Character creation validation
+- Database connection string parsing (URL validation only)
+- Model serialization/deserialization (e.g., accounts)
+- Error type formatting
+- Character model validation/conversion checks
+
+> Note: Integration tests that exercise a live database connection are not implemented yet.
 
 ## 🔍 Health Checks
 
