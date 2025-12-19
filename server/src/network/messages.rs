@@ -175,6 +175,7 @@ pub struct MovementIntent {
     pub target_position: Vector3,
     pub speed_modifier: f32,
     pub stop_movement: bool,
+    pub rotation_y: f32,
 }
 
 /// Combat action from client

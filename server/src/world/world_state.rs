@@ -62,6 +62,75 @@ impl WorldState {
         self.player_zone_map.get(&player_id).cloned()
     }
 
+    /// Ensure a player has a zone mapping; if missing, try to infer it from zones.
+    pub fn ensure_player_zone_mapping(&mut self, player_id: EntityId) -> Option<u32> {
+        if let Some(zone_id) = self.get_player_zone_id(player_id) {
+            return Some(zone_id);
+        }
+
+        for (zone_id, zone) in &self.zones {
+            if zone.entities.get_entity(player_id).is_some() {
+                self.player_zone_map.insert(player_id, *zone_id);
+                return Some(*zone_id);
+            }
+        }
+
+        None
+    }
+
+    /// Spawn or respawn a player entity in the requested zone at the given position
+    pub fn spawn_player_entity(
+        &mut self,
+        name: &str,
+        zone_label: &str,
+        position: (f32, f32, f32),
+        rotation: f32,
+        health: (i32, i32),
+    ) -> Result<EntityId, String> {
+        let zone_id = self.resolve_zone_id(zone_label);
+        let zone = self
+            .get_zone_mut(zone_id)
+            .ok_or_else(|| format!("Zone {} not found", zone_id))?;
+
+        // Allocate a new entity ID and build a player entity
+        let entity_id = zone.entities.generate_id();
+        let mut player = crate::entities::Entity::new_player(entity_id, name.to_string());
+        if let Some(pos) = &mut player.position {
+            pos.x = position.0;
+            pos.y = position.1;
+            pos.z = position.2;
+            pos.rotation = rotation;
+        }
+        if let Some(h) = &mut player.health {
+            h.current = health.0.max(0) as u32;
+            h.maximum = health.1.max(1) as u32;
+        }
+
+        zone.entities.add_entity(player);
+        zone.add_player(entity_id);
+        self.player_zone_map.insert(entity_id, zone_id);
+
+        Ok(entity_id)
+    }
+
+    /// Resolve a zone identifier from either a numeric ID or name; defaults to starter zone.
+    pub fn resolve_zone_id(&self, zone_label: &str) -> u32 {
+        if let Ok(id) = zone_label.parse::<u32>() {
+            if self.zones.contains_key(&id) {
+                return id;
+            }
+        }
+        let normalized = zone_label.replace('_', " ");
+        for (id, zone) in &self.zones {
+            if zone.name.eq_ignore_ascii_case(zone_label)
+                || zone.name.eq_ignore_ascii_case(&normalized)
+            {
+                return *id;
+            }
+        }
+        1
+    }
+
     /// Move a player to a different zone
     pub fn move_player_to_zone(
         &mut self,
@@ -199,5 +268,62 @@ impl WorldState {
     /// Get and clear the combat actions queue
     pub fn drain_combat_actions(&mut self) -> VecDeque<(EntityId, CombatAction)> {
         std::mem::take(&mut self.combat_actions)
+    }
+
+    /// Remove a player from the world and clean up its entity
+    pub fn remove_player(&mut self, player_id: EntityId) {
+        if let Some(zone_id) = self.player_zone_map.remove(&player_id) {
+            if let Some(zone) = self.zones.get_mut(&zone_id) {
+                zone.remove_player(player_id);
+                let _ = zone.entities.remove_entity(player_id);
+            }
+        }
+    }
+
+    /// Remove any player entities by display name to avoid stale duplicates
+    pub fn remove_player_by_name(&mut self, name: &str) {
+        let mut to_remove: Vec<EntityId> = Vec::new();
+
+        for zone in self.zones.values() {
+            for entity in zone.entities.get_all_entities() {
+                if entity.name == name
+                    && matches!(entity.entity_type, crate::entities::EntityType::Player)
+                {
+                    to_remove.push(entity.id);
+                    self.player_zone_map.remove(&entity.id);
+                }
+            }
+        }
+
+        for id in to_remove {
+            if let Some(zone_id) = self.player_zone_map.remove(&id) {
+                if let Some(zone) = self.zones.get_mut(&zone_id) {
+                    zone.remove_player(id);
+                    let _ = zone.entities.remove_entity(id);
+                }
+            } else {
+                // Best-effort removal even if map was already cleared
+                for zone in self.zones.values_mut() {
+                    zone.entities.remove_entity(id);
+                    zone.remove_player(id);
+                }
+            }
+        }
+    }
+
+    /// Get a player's current position and rotation if present
+    pub fn get_player_pose(&self, player_id: EntityId) -> Option<(f32, f32, f32, f32)> {
+        let zone_id = self.player_zone_map.get(&player_id)?;
+        let zone = self.zones.get(zone_id)?;
+        let entity = zone.entities.get_entity(player_id)?;
+        let pos = entity.position.as_ref()?;
+        Some((pos.x, pos.y, pos.z, pos.rotation))
+    }
+
+    pub fn get_player_name(&self, player_id: EntityId) -> Option<String> {
+        let zone_id = self.player_zone_map.get(&player_id)?;
+        let zone = self.zones.get(zone_id)?;
+        let entity = zone.entities.get_entity(player_id)?;
+        Some(entity.name.clone())
     }
 }

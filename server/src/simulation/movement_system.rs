@@ -14,12 +14,17 @@ pub struct MovementIntent {
     pub target_y: f32,
     pub target_z: f32,
     pub speed_modifier: f32, // 1.0 = normal speed
+    pub stop_movement: bool,
+    pub rotation_y: f32,
 }
 
 /// Movement system for processing movement intents
 pub struct MovementSystem;
 
 impl MovementSystem {
+    /// Allow some headroom for client jitter/buffs while keeping an upper bound per tick
+    const MAX_DISTANCE_FACTOR: f32 = 5.0;
+
     /// Process a movement intent
     pub fn process_movement_intent(
         world_state: &mut WorldState,
@@ -27,7 +32,7 @@ impl MovementSystem {
     ) -> Result<(), String> {
         // Get the player's zone
         let zone_id = world_state
-            .get_player_zone_id(intent.player_id)
+            .ensure_player_zone_mapping(intent.player_id)
             .ok_or_else(|| format!("Player {} not in any zone", intent.player_id))?;
 
         let zone = world_state
@@ -40,11 +45,20 @@ impl MovementSystem {
             .get_entity_mut(intent.player_id)
             .ok_or_else(|| format!("Player entity {} not found", intent.player_id))?;
 
+        if intent.stop_movement {
+            if let Some(position) = &mut entity.position {
+                position.rotation = intent.rotation_y;
+            }
+            return Self::stop_movement(world_state, intent.player_id);
+        }
+
+        let clamped_intent = Self::clamp_intent(entity, intent);
+
         // Validate movement
-        Self::validate_movement(entity, &intent)?;
+        Self::validate_movement(entity, &clamped_intent)?;
 
         // Apply movement
-        Self::apply_movement(entity, intent);
+        Self::apply_movement(entity, clamped_intent);
 
         Ok(())
     }
@@ -70,8 +84,9 @@ impl MovementSystem {
         let dz = intent.target_z - position.z;
         let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
-        let max_distance_per_tick = movement.max_speed * intent.speed_modifier / 20.0; // 20 TPS
-        if distance > max_distance_per_tick {
+        let max_distance_per_tick =
+            (movement.max_speed * intent.speed_modifier * Self::MAX_DISTANCE_FACTOR) / 20.0; // 20 TPS
+        if distance > max_distance_per_tick + f32::EPSILON {
             return Err(format!(
                 "Movement distance {} exceeds maximum {} per tick",
                 distance, max_distance_per_tick
@@ -87,6 +102,9 @@ impl MovementSystem {
 
     /// Apply validated movement to an entity
     fn apply_movement(entity: &mut Entity, intent: MovementIntent) {
+        if let Some(position) = &mut entity.position {
+            position.rotation = intent.rotation_y;
+        }
         if let (Some(position), Some(movement)) = (&mut entity.position, &mut entity.movement) {
             // Calculate direction vector
             let dx = intent.target_x - position.x;
@@ -106,6 +124,35 @@ impl MovementSystem {
                 position.rotation = dy.atan2(dx);
             }
         }
+    }
+
+    fn clamp_intent(entity: &Entity, intent: MovementIntent) -> MovementIntent {
+        let mut adjusted = intent.clone();
+
+        let movement = match &entity.movement {
+            Some(m) => m,
+            None => return adjusted,
+        };
+        let position = match &entity.position {
+            Some(p) => p,
+            None => return adjusted,
+        };
+
+        let dx = intent.target_x - position.x;
+        let dy = intent.target_y - position.y;
+        let dz = intent.target_z - position.z;
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+
+        let max_distance_per_tick =
+            (movement.max_speed * intent.speed_modifier * Self::MAX_DISTANCE_FACTOR) / 20.0; // 20 TPS
+        if distance > max_distance_per_tick && distance > 0.0 {
+            let scale = max_distance_per_tick / distance;
+            adjusted.target_x = position.x + dx * scale;
+            adjusted.target_y = position.y + dy * scale;
+            adjusted.target_z = position.z + dz * scale;
+        }
+
+        adjusted
     }
 
     /// Stop movement for an entity

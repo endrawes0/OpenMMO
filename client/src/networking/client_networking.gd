@@ -63,6 +63,10 @@ func connect_to_server(url: String) -> Error:
 func close_connection():
 	if websocket:
 		websocket.close()
+		websocket = null
+		connection_state = ConnectionState.DISCONNECTED
+		session_id = ""
+		player_id = 0
 	websocket = null
 	connection_state = ConnectionState.DISCONNECTED
 	session_id = ""

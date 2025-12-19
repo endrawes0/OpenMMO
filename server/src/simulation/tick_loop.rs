@@ -71,6 +71,8 @@ impl SimulationLoop {
                     target_y: intent.target_y,
                     target_z: intent.target_z,
                     speed_modifier: intent.speed_modifier,
+                    stop_movement: intent.stop_movement,
+                    rotation_y: intent.rotation_y,
                 };
                 let player_id = sim_intent.player_id;
 
@@ -139,7 +141,7 @@ impl SimulationLoop {
     }
 }
 
-fn build_world_snapshot(
+pub(crate) fn build_world_snapshot(
     world: &WorldState,
     session: &crate::network::Session,
 ) -> Option<WorldSnapshot> {
@@ -169,7 +171,7 @@ fn build_world_snapshot(
     })
 }
 
-fn entity_to_wire(entity: &GameEntity) -> Option<messages::Entity> {
+pub(crate) fn entity_to_wire(entity: &GameEntity) -> Option<messages::Entity> {
     let position = entity.position.as_ref()?;
 
     let movement_state = determine_movement_state(entity);
