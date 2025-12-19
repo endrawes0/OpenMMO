@@ -29,7 +29,7 @@ The pipeline enforces all DoD criteria from AGENTS.md:
 
 ### Automated Checks
 - **Rust Server**: Formatting, linting, building, testing, security audit
-- **Godot Client**: Project validation, scene structure, GDScript syntax
+- **Godot Client**: Headless project validation, required scenes/presets, and core module smoke tests
 - **Database**: Migration testing, rollback capability, schema validation
 - **Code Quality**: Secret detection, file organization, documentation updates
 

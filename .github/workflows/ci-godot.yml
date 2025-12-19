@@ -11,7 +11,7 @@ jobs:
   godot-client:
     name: Godot Client CI
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -22,12 +22,21 @@ jobs:
         version: '4.5.1-stable'
         include-templates: true
 
-    - name: Validate project.godot syntax
+    - name: Validate project and scripts
       run: |
         cd client
-        echo "Skipping Godot validation for Phase 0 infrastructure setup"
-        [ -f "project.godot" ] || { echo "project.godot not found"; exit 1; }
-        echo "Basic project.godot check passed"
+        godot --headless --check-only --path . --quit
+
+    - name: Parse core scenes
+      run: |
+        cd client
+        godot --headless --check-only --path . --quit scenes/Main.tscn
+        godot --headless --check-only --path . --quit scenes/GameWorld.tscn
+
+    - name: Smoke test core client modules
+      run: |
+        cd client
+        godot --headless --path . --script res://test_modules.gd
 
     - name: Check scene structure
       run: |
@@ -37,27 +46,14 @@ jobs:
         [ -f "scenes/GameWorld.tscn" ] || { echo "GameWorld.tscn not found"; exit 1; }
         echo "All required scenes found"
 
-    - name: Validate GDScript syntax
-      run: |
-        cd client
-        echo "Skipping GDScript validation for Phase 0 infrastructure setup"
-        echo "GDScript validation will be restored after Phase 0 merge"
-        # Basic file existence check only
-        for script in scripts/*.gd; do
-          if [ -f "$script" ]; then
-            echo "$script exists"
-          fi
-        done
-        echo "Basic file check passed"
-
     - name: Check export presets
       run: |
         cd client
         if [ -f "export_presets.cfg" ]; then
-          echo "Export presets file found"
-          godot --headless --check-export-preset export_presets.cfg
+          echo "Export presets file found - parsing"
+          python -c "import configparser, sys; cfg=configparser.ConfigParser(); cfg.read('export_presets.cfg'); presets=[s for s in cfg.sections() if s.startswith('preset.')]; sys.exit('export_presets.cfg found but no [preset.*] sections detected' if not presets else 0); print(f'Export presets parsed ({len(presets)} presets found)')"
         else
-          echo "No export presets file found (optional for MVP)"
+          echo "No export_presets.cfg file found (optional for MVP)"
         fi
 
     - name: Validate project structure
@@ -74,7 +70,6 @@ jobs:
       run: |
         cd client
         echo "Checking file organization..."
-        # Ensure no business logic in Godot scripts (basic check)
         if grep -r "database\|sql\|http" scripts/ 2>/dev/null; then
           echo "Warning: Potential business logic found in GDScript files"
           echo "According to AGENTS.md, business logic should be outside Godot scripts"
