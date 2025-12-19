@@ -7,12 +7,12 @@ This document reflects the branch protection settings currently configured on Gi
 ### Required Status Checks
 Branch protection currently requires the following contexts to report before merge:
 
-- `CI - Full Pipeline / Rust Server`
-- `CI - Full Pipeline / Godot Client`
-- `CI - Full Pipeline / Database Migrations`
-- `CI - Full Pipeline / Code Quality Gates`
-- `CI - Full Pipeline / Definition of Done Check`
-- `PR Validation / Validate PR Requirements`
+- `Rust Server`
+- `Godot Client`
+- `Database Migrations`
+- `Code Quality Gates`
+- `Definition of Done Check`
+- `Validate PR Requirements`
 
 ### Required Pull Request Reviews
 - Required approving reviews: **0**
