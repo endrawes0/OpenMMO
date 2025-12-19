@@ -138,17 +138,7 @@ jobs:
         [ -f "scenes/Main.tscn" ] || { echo "Main.tscn not found"; exit 1; }
         [ -f "scenes/GameWorld.tscn" ] || { echo "GameWorld.tscn not found"; exit 1; }
         if [ -f "export_presets.cfg" ]; then
-          python - <<'PY'
-          import configparser
-          import sys
-          cfg = configparser.ConfigParser()
-          with open("export_presets.cfg", "r", encoding="utf-8") as f:
-              cfg.read_file(f)
-          presets = [section for section in cfg.sections() if section.startswith("preset.")]
-          if not presets:
-              sys.exit("export_presets.cfg found but no [preset.*] sections detected")
-          print(f"Export presets parsed ({len(presets)} presets found)")
-PY
+          python -c "import configparser, sys; cfg=configparser.ConfigParser(); cfg.read('export_presets.cfg'); presets=[s for s in cfg.sections() if s.startswith('preset.')]; sys.exit('export_presets.cfg found but no [preset.*] sections detected' if not presets else 0); print(f'Export presets parsed ({len(presets)} presets found)')"
         else
           echo "No export_presets.cfg found (optional for MVP)"
         fi
