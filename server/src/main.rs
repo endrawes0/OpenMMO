@@ -63,8 +63,74 @@ async fn persist_active_positions(state: &AppState) {
     }
 }
 
+struct EnvLoadResult {
+    path: Option<std::path::PathBuf>,
+    warnings: Vec<String>,
+}
+
+fn load_env_file() -> anyhow::Result<EnvLoadResult> {
+    let mut current_dir = std::env::current_dir()?;
+
+    loop {
+        let candidate = current_dir.join(".env");
+        if candidate.exists() {
+            let contents = std::fs::read_to_string(&candidate)?;
+            let mut warnings = Vec::new();
+
+            for (idx, raw_line) in contents.lines().enumerate() {
+                let line = raw_line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                let line = line.strip_prefix("export ").unwrap_or(line);
+                let (key, value) = match line.split_once('=') {
+                    Some(parts) => parts,
+                    None => {
+                        warnings.push(format!(
+                            "Ignoring malformed line {}: '{}'",
+                            idx + 1,
+                            raw_line
+                        ));
+                        continue;
+                    }
+                };
+
+                let key = key.trim();
+                if key.is_empty() {
+                    warnings.push(format!("Ignoring empty key on line {}", idx + 1));
+                    continue;
+                }
+
+                if std::env::var_os(key).is_some() {
+                    continue;
+                }
+
+                let value = value.trim().trim_matches('"').trim_matches('\'');
+                std::env::set_var(key, value);
+            }
+
+            return Ok(EnvLoadResult {
+                path: Some(candidate),
+                warnings,
+            });
+        }
+
+        if !current_dir.pop() {
+            break;
+        }
+    }
+
+    Ok(EnvLoadResult {
+        path: None,
+        warnings: Vec::new(),
+    })
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let env_load = load_env_file()?;
+
     // Initialize tracing
     tracing_subscriber::registry()
         .with(
@@ -73,6 +139,16 @@ async fn main() -> anyhow::Result<()> {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    if let Some(path) = env_load.path {
+        info!("Loaded environment from {}", path.display());
+    } else {
+        info!("No .env file found; relying on process environment");
+    }
+
+    for warning in env_load.warnings {
+        warn!("{warning}");
+    }
 
     // Load database URL from environment
     let database_url = std::env::var("DATABASE_URL")

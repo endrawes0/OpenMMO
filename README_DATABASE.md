@@ -102,6 +102,8 @@ RUST_LOG=openmmo=debug,tower_http=debug
 ENVIRONMENT=development
 ```
 
+The server automatically loads the nearest `.env` file when it starts (without overriding variables already set in the process), so `cargo run -p server` will pick up your local configuration from the repo root by default.
+
 ### Docker Compose Configuration
 
 The `docker-compose.yml` includes:
