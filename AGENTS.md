@@ -157,6 +157,11 @@ Agents MUST request approval before:
 - Changing repository structure  
 - Implementing speculative features not present in the spec
 
+### GitHub CLI Usage
+- When creating or updating PRs with `gh`, prefer the REST form to avoid project-related GraphQL issues:
+  - Create PR: `gh pr create --base master --head feature/<branch> --title "<title>" --body "<body>"`
+  - Update PR body: `gh api repos/<owner>/<repo>/pulls/<number> -X PATCH -f body='<body>'`
+
 If unsure, agents MUST ASK.
 
 ---
