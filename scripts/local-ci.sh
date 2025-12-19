@@ -36,8 +36,11 @@ check_dependencies() {
         echo -e "${RED}❌ Rust/Cargo not found${NC}"
         exit 1
     fi
-
-    # Note: protoc, godot, and database tools are handled by CI or optional locally
+    if ! command -v godot &> /dev/null; then
+        echo -e "${RED}❌ Godot not found (install Godot 4.5.1 or ensure it is on PATH)${NC}"
+        exit 1
+    fi
+    # Note: protoc and database tools are handled by CI or optional locally
     
     print_status 0 "Dependencies checked"
 }
@@ -108,9 +111,41 @@ run_godot_checks() {
 
     cd client
 
+    echo "🧠 Validating project and scripts headlessly..."
+    godot --headless --check-only --path . --quit
+    print_status $? "Godot project validation"
+
+    echo "📑 Parsing core scenes..."
+    godot --headless --check-only --path . --quit scenes/Main.tscn
+    print_status $? "Main.tscn parsed"
+    godot --headless --check-only --path . --quit scenes/GameWorld.tscn
+    print_status $? "GameWorld.tscn parsed"
+
+    echo "🧪 Smoking core client modules..."
+    godot --headless --path . --script res://test_modules.gd
+    print_status $? "Module smoke test"
+
     echo "🎬 Checking scene structure..."
     [ -f "scenes/Main.tscn" ] || { echo "Main.tscn not found"; exit 1; }
     [ -f "scenes/GameWorld.tscn" ] || { echo "GameWorld.tscn not found"; exit 1; }
+    echo "Scenes found"
+
+    if [ -f "export_presets.cfg" ]; then
+        echo "📦 Checking export presets..."
+        python - <<'PY'
+import configparser, sys
+cfg = configparser.ConfigParser()
+with open("export_presets.cfg", "r", encoding="utf-8") as f:
+    cfg.read_file(f)
+presets = [section for section in cfg.sections() if section.startswith("preset.")]
+if not presets:
+    sys.exit("export_presets.cfg found but no [preset.*] sections detected")
+print(f"Export presets parsed ({len(presets)} presets found)")
+PY
+        print_status $? "Export presets check"
+    else
+        echo "No export_presets.cfg found (optional for MVP)"
+    fi
     echo "Godot client validation passed"
 
     cd ..
