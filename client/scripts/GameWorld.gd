@@ -11,6 +11,7 @@ const CAMERA_SENSITIVITY := 0.005
 const CAMERA_ZOOM_STEP := 0.75
 const PLAYER_EYE_HEIGHT := 1.6
 const MAX_SIGNED_64: int = 9223372036854775807
+const MIN_FLOOR_Y := 0.5  # Safety floor to keep the player above terrain
 
 @onready var gravity_value: float = ProjectSettings.get_setting("physics/3d/default_gravity") * 1.2  # Increased by 20%
 @onready var camera: Camera3D = $Camera3D
@@ -70,6 +71,8 @@ func _load_session_modules() -> void:
 			input_manager.connect("jump_released", Callable(self, "_on_jump_released"))
 		if not input_manager.is_connected("action_pressed", Callable(self, "_on_action_pressed")):
 			input_manager.connect("action_pressed", Callable(self, "_on_action_pressed"))
+	if client_networking and not client_networking.is_connected("world_snapshot_received", Callable(self, "_on_world_snapshot_received")):
+		client_networking.connect("world_snapshot_received", Callable(self, "_on_world_snapshot_received"))
 
 func _load_character_data() -> void:
 	if get_tree().has_meta("selected_character"):
@@ -259,3 +262,29 @@ func _return_to_menu() -> void:
 			ui_manager.go_to_character_select()
 	get_tree().set_meta("selected_character", null)
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+
+func _on_world_snapshot_received(snapshot: Dictionary) -> void:
+	if game_state_manager:
+		game_state_manager.apply_world_snapshot(snapshot)
+	_apply_authoritative_player_position()
+
+func _apply_authoritative_player_position() -> void:
+	if not game_state_manager:
+		return
+	var player_id = game_state_manager.player_entity_id
+	if player_id == 0:
+		return
+	var player_entity = game_state_manager.get_entity(player_id)
+	if player_entity.is_empty():
+		return
+	if not player_entity.has("position"):
+		return
+	var pos = player_entity.position
+	var authoritative_position = Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+
+	# Reconcile only when drift is noticeable to avoid jitter
+	var drift_distance = player.global_position.distance_to(authoritative_position)
+	if drift_distance > 0.25:
+		# Smoothly correct toward the authoritative position to avoid popping
+		var blended = player.global_position.lerp(authoritative_position, 0.5)
+		player.global_position = blended

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO characters (account_id, name, class, health, max_health, resource_type, resource_value, max_resource)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n            RETURNING id, account_id, name, class, level, experience, zone_id,\n                      position_x, position_y, position_z, rotation,\n                      health, max_health, resource_type, resource_value, max_resource,\n                      is_online, created_at, updated_at, last_saved_at\n            ",
+  "query": "\n            INSERT INTO characters (\n                account_id,\n                name,\n                class,\n                health,\n                max_health,\n                resource_type,\n                resource_value,\n                max_resource,\n                zone_id,\n                position_x,\n                position_y,\n                position_z,\n                rotation\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'starter_zone', 0.0, 2.0, 12.0, 0.0)\n            RETURNING id, account_id, name, class, level, experience, zone_id,\n                      position_x, position_y, position_z, rotation,\n                      health, max_health, resource_type, resource_value, max_resource,\n                      is_online, created_at, updated_at, last_saved_at\n            ",
   "describe": {
     "columns": [
       {
@@ -139,5 +139,5 @@
       false
     ]
   },
-  "hash": "6897f2853b4a5e5098a283e5ef3b6b76a7cb1752f844b7f92cedb6f771b93c78"
+  "hash": "2d35d91329eb3b15c5f84815a6900addd56a40f89b2f36b73dfc04754ec117f3"
 }

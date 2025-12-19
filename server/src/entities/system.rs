@@ -158,9 +158,9 @@ impl EntityManager {
         let id = self.generate_id();
         let mut player = Entity::new_player(id, name);
         player.position = Some(Position {
-            x: 10.0,
-            y: 0.0,
-            z: 10.0,
+            x: 0.0,
+            y: 2.0,
+            z: 12.0,
             rotation: 0.0,
         });
         self.add_entity(player);
