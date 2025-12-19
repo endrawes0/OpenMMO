@@ -1,7 +1,7 @@
 ## Summary
 <!-- Brief description of the work (1-2 sentences) -->
 
-## Validation Steps
+## Validation
 <!-- How reviewers can run or test this change -->
 1. 
 2. 

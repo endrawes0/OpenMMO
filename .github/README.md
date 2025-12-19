@@ -48,7 +48,7 @@ All PRs must include:
 - Testing checklist
 - AGENTS.md compliance checklist
 
-### Validation Steps
+### Validation
 The pipeline automatically validates:
 - PR description completeness
 - Branch naming convention
