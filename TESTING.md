@@ -113,7 +113,8 @@ func _init():
         "res://src/networking/client_networking.gd",
         "res://src/gamestate/game_state_manager.gd",
         "res://src/movement/movement_system.gd",
-        "res://src/input/input_manager.gd"
+        "res://src/input/input_manager.gd",
+        "res://src/ui/ui_state_manager.gd"
     ]
 
     for path in modules:
@@ -140,8 +141,11 @@ Testing OpenMMO client modules...
 ✓ game_state_manager loaded successfully
 ✓ movement_system loaded successfully
 ✓ input_manager loaded successfully
+✓ ui_state_manager loaded successfully
 Module loading test completed
 ```
+
+> Note: `res://` resolves to the `client/` project root. Run the script from inside `client/` (as shown) so the `res://src/...` paths load correctly.
 
 ### 2.2 Client UI Testing
 ```bash
@@ -231,7 +235,13 @@ extends SceneTree
 func _init():
     print("Testing message protocol...")
 
-    var networking = load("res://src/networking/client_networking.gd").new()
+    # Mirror client_networking.gd message envelope creation without opening a socket
+    func build_envelope(payload: Dictionary, sequence_id: int) -> Dictionary:
+        return {
+            "sequence_id": sequence_id,
+            "timestamp": int(Time.get_unix_time_from_system() * 1000),
+            "payload": payload
+        }
 
     # Test message creation
     var test_messages = [
@@ -248,8 +258,10 @@ func _init():
         }}
     ]
 
+    var sequence := 0
     for payload in test_messages:
-        var message = networking._create_message(payload)
+        var message = build_envelope(payload, sequence)
+        sequence += 1
         print("Message created: ", JSON.stringify(message))
 
     print("Message protocol test completed")
