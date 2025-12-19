@@ -139,7 +139,8 @@ jobs:
         [ -f "scenes/GameWorld.tscn" ] || { echo "GameWorld.tscn not found"; exit 1; }
         if [ -f "export_presets.cfg" ]; then
           python - <<'PY'
-import configparser, sys
+import configparser
+import sys
 cfg = configparser.ConfigParser()
 with open("export_presets.cfg", "r", encoding="utf-8") as f:
     cfg.read_file(f)

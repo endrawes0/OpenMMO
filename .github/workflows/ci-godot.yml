@@ -52,7 +52,8 @@ jobs:
         if [ -f "export_presets.cfg" ]; then
           echo "Export presets file found - parsing"
           python - <<'PY'
-import configparser, sys
+import configparser
+import sys
 cfg = configparser.ConfigParser()
 with open("export_presets.cfg", "r", encoding="utf-8") as f:
     cfg.read_file(f)
