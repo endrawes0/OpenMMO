@@ -8,18 +8,15 @@ This is the Godot 4.x client for OpenMMO, following the project's architecture g
 client/
 ├── project.godot          # Godot project configuration
 ├── scenes/                # Game scenes
-│   ├── Main.tscn         # Main menu scene
-│   └── GameWorld.tscn    # Game world placeholder
-├── scripts/               # GDScript files (UI binding only)
-│   ├── Main.gd           # Main menu controller
-│   ├── NetworkDebug.gd   # Network debug overlay
-│   └── GameWorld.gd      # Game world controller
-├── assets/                # Game assets
-│   ├── models/           # 3D models
-│   ├── textures/         # Texture files
-│   ├── audio/            # Audio files
-│   └── ui/               # UI elements
-└── export_presets.cfg    # Export configurations
+│   ├── Main.tscn         # UI scaffolding for auth/character flows
+│   └── GameWorld.tscn    # Placeholder zone with simple terrain + capsule player
+├── scripts/               # Scene-specific controllers (UI binding only)
+│   ├── Main.gd
+│   ├── NetworkDebug.gd
+│   └── GameWorld.gd
+├── src/                   # Engine-agnostic modules (networking, movement, state, input, UI)
+├── assets/                # Empty placeholder folders + README stubs (no shipped art assets)
+└── export_presets.cfg    # Export configurations for desktop targets
 ```
 
 ## Architecture Notes
@@ -39,21 +36,21 @@ Following AGENTS.md guidelines:
 
 ## Current Features
 
-- Login, registration, and character selection UI with create/select flows
-- Engine-agnostic networking, game state, input, movement, and UI modules
-- Transition from character selection into the initial zone scene
-- Third-person placeholder zone with terrain, spawn camp, and lighting pass
-- Player capsule with WASD movement, mouse-driven camera, and scroll zoom
-- Network debug overlay for monitoring connection status
+- UI scaffolding for login/registration/character selection wired to engine-agnostic modules (no bundled backend)
+- Engine-agnostic networking, game state, input, movement, and UI state modules under `src/`
+- Transition from character selection into a placeholder GameWorld scene
+- Placeholder zone with simple terrain, basic lighting, and a capsule player with WASD + mouse orbit/zoom controls
+- Network debug overlay for connection status text
 - Export presets for Windows, Linux, and macOS
+- Asset folders are empty aside from README stubs; no models, textures, audio, or UI art are shipped yet
 
 ## Next Steps
 
 The client structure is ready for integration with:
 - Real authentication + character services backed by the Rust server
-- Authoritative world snapshots and entity replication
-- Combat, abilities, and inventory UI layers
-- Server-driven movement reconciliation and prediction correction
+- Importing licensed placeholder assets (models, textures, audio, UI) and wiring them into scenes
+- Authoritative world snapshots, entity replication, and richer zone content
+- Server-driven movement reconciliation, combat, abilities, and inventory UI layers
 
 ## Controls
 
