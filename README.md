@@ -6,7 +6,7 @@ A fully open-source MMORPG framework built with modern technologies, designed to
 
 OpenMMO is a complete, open-source MMORPG (Massively Multiplayer Online Role-Playing Game) framework that lets you create and host your own online multiplayer game worlds. Whether you're a developer building a game or a community running a server, OpenMMO provides everything you need for persistent multiplayer gameplay.
 
-### Key Features
+### Key Features (MVP Target)
 
 - **Real-time Multiplayer**: Server-authoritative gameplay supporting 10-30 concurrent players per zone
 - **Character Progression**: Level up, gain experience, and unlock abilities
@@ -24,6 +24,12 @@ OpenMMO is a complete, open-source MMORPG (Massively Multiplayer Online Role-Pla
 - **2 Mob Types**: Hostile creatures with combat AI
 - **Quest System**: Kill and collect quests with progression tracking
 - **Item System**: Weapons, armor, consumables, and loot drops
+
+## Current Status
+
+- **Networking**: WebSocket server with JSON envelopes using the manual structs in `server/src/network/messages.rs`; `proto/messages.proto` exists but Protobuf generation is not wired, so the runtime does not use binary messages yet.
+- **Implemented pieces**: Handshake + ping/pong, session creation, basic auth/register flow backed by SQLx, synthetic player ID allocation, two placeholder zones with simple movement/combat queues.
+- **Not yet implemented**: Chat, quest pipeline, inventory/equipment handling, character list/create/select/delete flows over the network, Protobuf transport, class-specific abilities, mobs/NPC content, or client-side content for the advertised zones/classes.
 
 ## Getting Started
 
@@ -133,9 +139,9 @@ OpenMMO/
 This project follows a structured development approach:
 
 1. **Phase 0** - Repository & Infrastructure Setup ✅
-2. **Phase 1** - Networking & Protocol Skeleton ✅
-3. **Phase 2** - Core Server Gameplay Loop ✅
-4. **Phase 3** - Persistence, Accounts, and Characters ✅
+2. **Phase 1** - Networking & Protocol Skeleton 🚧 (WebSocket JSON prototype; Protobuf wiring pending)
+3. **Phase 2** - Core Server Gameplay Loop 🚧 (Basic movement/combat tick only)
+4. **Phase 3** - Persistence, Accounts, and Characters 🚧 (Account auth present; character lifecycle not exposed)
 5. **Phase 4** - Inventory, Items, Classes, and NPCs
 6. **Phase 5** - Second Zone and Content Pass
 7. **Phase 6** - Admin Tools, Packaging, and Release Prep
@@ -144,7 +150,7 @@ This project follows a structured development approach:
 
 **Server (Rust)**
 - Async runtime with Tokio
-- WebSocket + Protobuf networking
+- WebSocket networking with JSON envelopes today; Protobuf schema lives in `proto/messages.proto` and will replace JSON once generation is wired up
 - PostgreSQL database with SQLx
 - Entity Component System (ECS) for game logic
 - 20 Hz simulation tick loop
