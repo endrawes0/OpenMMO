@@ -31,12 +31,18 @@ var camera_orbit_offset: float = 0.0
 var left_dragging := false
 var right_dragging := false
 var jump_pressed := false
+var entity_proxies: Dictionary = {}
+var _proxies_root: Node3D = null
+var _initial_snapshot_applied := false
+var _initial_rotation_applied := false
 
 func _ready() -> void:
 	_load_session_modules()
 	_load_character_data()
 	_initialize_player()
+	_ensure_proxies_root()
 	_configure_camera_defaults()
+	_apply_cached_snapshot()
 
 func _physics_process(delta: float) -> void:
 	if client_networking:
@@ -73,6 +79,8 @@ func _load_session_modules() -> void:
 			input_manager.connect("action_pressed", Callable(self, "_on_action_pressed"))
 	if client_networking and not client_networking.is_connected("world_snapshot_received", Callable(self, "_on_world_snapshot_received")):
 		client_networking.connect("world_snapshot_received", Callable(self, "_on_world_snapshot_received"))
+	if movement_system and not movement_system.is_connected("movement_intent_sent", Callable(self, "_on_movement_intent_sent")):
+		movement_system.connect("movement_intent_sent", Callable(self, "_on_movement_intent_sent"))
 
 func _load_character_data() -> void:
 	if get_tree().has_meta("selected_character"):
@@ -134,6 +142,13 @@ func _configure_camera_defaults() -> void:
 	if camera:
 		camera.current = true
 
+func _ensure_proxies_root() -> void:
+	if _proxies_root and is_instance_valid(_proxies_root):
+		return
+	_proxies_root = Node3D.new()
+	_proxies_root.name = "EntityProxies"
+	add_child(_proxies_root)
+
 func _update_player_movement(delta: float) -> void:
 	var input_vector = Vector2(movement_input.x, -movement_input.y)
 	if input_vector.length_squared() > 1.0:
@@ -163,6 +178,7 @@ func _update_player_movement(delta: float) -> void:
 
 	if movement_system:
 		movement_system.set_target_position(player.global_position)
+		movement_system.update(delta, input_vector, player.rotation.y)
 
 func _update_camera_position() -> void:
 	if not camera:
@@ -192,7 +208,6 @@ func _handle_mouse_input(event) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			left_dragging = event.pressed
-			_update_mouse_mode()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			right_dragging = event.pressed
 			if right_dragging:
@@ -207,7 +222,7 @@ func _handle_mouse_input(event) -> void:
 			_handle_camera_drag(event.relative)
 
 func _update_mouse_mode() -> void:
-	if left_dragging or right_dragging:
+	if right_dragging:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	else:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -233,8 +248,6 @@ func _adjust_zoom(amount: float) -> void:
 
 func _on_movement_input_changed(input_vector: Vector2) -> void:
 	movement_input = input_vector
-	if movement_system:
-		movement_system.update(0.0, input_vector)
 
 func _on_jump_pressed() -> void:
 	jump_pressed = true
@@ -255,6 +268,8 @@ func _return_to_menu() -> void:
 	left_dragging = false
 	right_dragging = false
 	_update_mouse_mode()
+	if client_networking:
+		client_networking.close_connection()
 	if get_tree().has_meta("session_modules"):
 		var modules = get_tree().get_meta("session_modules")
 		var ui_manager = modules.get("ui_state_manager", null)
@@ -263,12 +278,25 @@ func _return_to_menu() -> void:
 	get_tree().set_meta("selected_character", null)
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
+func _exit_tree() -> void:
+	if client_networking:
+		client_networking.close_connection()
+
 func _on_world_snapshot_received(snapshot: Dictionary) -> void:
+	_initial_snapshot_applied = true
 	if game_state_manager:
 		game_state_manager.apply_world_snapshot(snapshot)
+	_sync_entity_proxies()
+	_apply_authoritative_player_rotation()
 	_apply_authoritative_player_position()
 
 func _apply_authoritative_player_position() -> void:
+	# Client-only movement: no server snapping for the local player to avoid slowdown jitter
+	return
+
+func _apply_authoritative_player_rotation() -> void:
+	if _initial_rotation_applied:
+		return
 	if not game_state_manager:
 		return
 	var player_id = game_state_manager.player_entity_id
@@ -277,14 +305,113 @@ func _apply_authoritative_player_position() -> void:
 	var player_entity = game_state_manager.get_entity(player_id)
 	if player_entity.is_empty():
 		return
-	if not player_entity.has("position"):
+	if not player_entity.has("rotation"):
 		return
-	var pos = player_entity.position
-	var authoritative_position = Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+	var rot = player_entity.rotation
+	if rot.has("y"):
+		player.rotation.y = rot.y
+		if movement_system:
+			movement_system.set_rotation_y(rot.y)
+	_initial_rotation_applied = true
 
-	# Reconcile only when drift is noticeable to avoid jitter
-	var drift_distance = player.global_position.distance_to(authoritative_position)
-	if drift_distance > 0.25:
-		# Smoothly correct toward the authoritative position to avoid popping
-		var blended = player.global_position.lerp(authoritative_position, 0.5)
-		player.global_position = blended
+func _on_movement_intent_sent(intent: Dictionary) -> void:
+	if client_networking:
+		client_networking.send_message(intent)
+
+func _sync_entity_proxies() -> void:
+	if not game_state_manager:
+		return
+	_ensure_proxies_root()
+
+	var current_entities: Dictionary = {}
+	for entity_id in game_state_manager.entities.keys():
+		current_entities[entity_id] = true
+		if entity_id == game_state_manager.player_entity_id:
+			continue
+		var entity_data: Dictionary = game_state_manager.entities.get(entity_id, {})
+		_spawn_or_update_proxy(entity_id, entity_data)
+
+	# Despawn entities that no longer exist in snapshot
+	for proxy_id in entity_proxies.keys():
+		if not current_entities.has(proxy_id):
+			_despawn_proxy(proxy_id)
+
+func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
+	if not entity_proxies.has(entity_id):
+		var proxy = Node3D.new()
+		proxy.name = "EntityProxy_%s" % entity_id
+		var mesh_instance = MeshInstance3D.new()
+		mesh_instance.mesh = CapsuleMesh.new()
+		mesh_instance.mesh.radius = 0.4
+		mesh_instance.mesh.height = 2
+		mesh_instance.material_override = _material_for_entity(entity_data)
+		proxy.add_child(mesh_instance)
+
+		var label = Label3D.new()
+		label.name = "NameLabel"
+		label.text = _display_name_for_entity(entity_data)
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.transform.origin = Vector3(0, 2, 0)
+		label.outline_size = 2
+		proxy.add_child(label)
+
+		_proxies_root.add_child(proxy)
+		entity_proxies[entity_id] = proxy
+
+	var proxy_node: Node3D = entity_proxies[entity_id]
+	if not is_instance_valid(proxy_node):
+		entity_proxies.erase(entity_id)
+		return
+
+	if entity_data.has("position"):
+		var pos = entity_data.position
+		var target = Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+		proxy_node.global_position = proxy_node.global_position.lerp(target, 0.5)
+	if entity_data.has("rotation"):
+		var rot = entity_data.rotation
+		proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y)
+
+	var label_node: Label3D = proxy_node.get_node_or_null("NameLabel")
+	if label_node:
+		label_node.text = _display_name_for_entity(entity_data)
+
+func _despawn_proxy(entity_id: int) -> void:
+	if not entity_proxies.has(entity_id):
+		return
+	var proxy: Node3D = entity_proxies[entity_id]
+	if is_instance_valid(proxy):
+		proxy.queue_free()
+	entity_proxies.erase(entity_id)
+
+func _material_for_entity(entity_data: Dictionary) -> StandardMaterial3D:
+	var mat = StandardMaterial3D.new()
+	mat.metallic = 0.0
+	mat.roughness = 0.6
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+
+	var entity_type = str(entity_data.get("entity_type", "")).to_lower()
+	match entity_type:
+		"player":
+			mat.albedo_color = Color(0.3, 0.7, 1.0)  # blue
+		"mob":
+			mat.albedo_color = Color(0.9, 0.3, 0.3)  # red
+		"npc":
+			mat.albedo_color = Color(0.9, 0.8, 0.4)  # yellow/gold
+		_:
+			mat.albedo_color = Color(0.7, 0.7, 0.9)  # fallback
+
+	return mat
+
+func _display_name_for_entity(entity_data: Dictionary) -> String:
+	var state = entity_data.get("state", {})
+	if typeof(state) == TYPE_DICTIONARY and state.has("display_name"):
+		return str(state.get("display_name", "Entity"))
+	return "Entity"
+
+func _apply_cached_snapshot() -> void:
+	if _initial_snapshot_applied:
+		return
+	if get_tree().has_meta("latest_world_snapshot"):
+		var snapshot = get_tree().get_meta("latest_world_snapshot")
+		if typeof(snapshot) == TYPE_DICTIONARY and not snapshot.is_empty():
+			_on_world_snapshot_received(snapshot)

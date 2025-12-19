@@ -10,6 +10,7 @@ mod simulation;
 mod world;
 
 use crate::network::messages::Envelope;
+use crate::simulation::tick_loop::build_world_snapshot;
 use axum::{
     extract::{State, WebSocketUpgrade},
     http::StatusCode,
@@ -19,7 +20,8 @@ use axum::{
 };
 use db::conversions::{CharacterWireView, ConversionError};
 use serde_json::json;
-use tracing::{error, info};
+use tokio::time::{interval, Duration};
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
@@ -29,6 +31,36 @@ struct AppState {
     session_store: network::SessionStore,
     world_state: std::sync::Arc<tokio::sync::RwLock<world::WorldState>>,
     account_service: accounts::AccountService,
+}
+
+async fn persist_active_positions(state: &AppState) {
+    let sessions = state.session_store.get_active_sessions().await;
+    let world = state.world_state.read().await;
+
+    for session in sessions {
+        if let (Some(player_id), Some(character_id)) = (session.player_id, session.character_id) {
+            if let Some((x, y, z, rot)) = world.get_player_pose(player_id) {
+                if let Err(e) = state
+                    .account_service
+                    .update_character_position(
+                        character_id,
+                        x as f64,
+                        y as f64,
+                        z as f64,
+                        rot as f64,
+                    )
+                    .await
+                {
+                    warn!("Periodic save failed for session {}: {:?}", session.id, e);
+                } else {
+                    info!(
+                        "Periodic save for character {} (session {}): ({:.2}, {:.2}, {:.2}) rot {:.2}",
+                        character_id, session.id, x, y, z, rot
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -86,6 +118,16 @@ async fn main() -> anyhow::Result<()> {
         let mut simulation_loop =
             simulation::SimulationLoop::new(simulation_world_state, simulation_session_store);
         simulation_loop.run().await;
+    });
+
+    // Periodically persist active player positions
+    let state_for_persist = state.clone();
+    tokio::spawn(async move {
+        let mut ticker = interval(Duration::from_secs(5));
+        loop {
+            ticker.tick().await;
+            persist_active_positions(&state_for_persist).await;
+        }
     });
 
     // Build our application with routes
@@ -153,23 +195,6 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     // Create a session for this connection
     let session_id = state.session_store.create_session().await;
     info!("Created session: {}", session_id);
-
-    // Create a test player entity for this session
-    let player_id = {
-        let mut world = state.world_state.write().await;
-        let zone = world.get_zone_mut(1).unwrap(); // Starter zone
-        let player_entity_id = zone
-            .entities
-            .create_test_player(format!("Player_{}", session_id));
-        world.add_player_to_starter_zone(player_entity_id);
-        player_entity_id
-    };
-
-    // Update session with player ID
-    state
-        .session_store
-        .authenticate_session(&session_id, Uuid::from_u128(1), player_id, None)
-        .await; // Hardcode placeholder account ID until auth completes
 
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
@@ -246,6 +271,8 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
                                     target_y: movement.target_position.y,
                                     target_z: movement.target_position.z,
                                     speed_modifier: movement.speed_modifier,
+                                    stop_movement: movement.stop_movement,
+                                    rotation_y: movement.rotation_y,
                                 };
 
                                 {
@@ -744,15 +771,86 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
                                         Some(character) => {
                                             let snapshot_character = character.clone();
 
+                                            let spawn_pose = (
+                                                snapshot_character.position_x as f32,
+                                                snapshot_character.position_y as f32,
+                                                snapshot_character.position_z as f32,
+                                                snapshot_character.rotation as f32,
+                                            );
+
+                                            let entity_id = {
+                                                let mut world = state.world_state.write().await;
+                                                // Clear any stale copies of this character by name
+                                                world.remove_player_by_name(
+                                                    &snapshot_character.name,
+                                                );
+                                                info!(
+                                                    "Spawning character {} in zone {} at ({:.2}, {:.2}, {:.2}) rot {:.2}",
+                                                    snapshot_character.id,
+                                                    snapshot_character.zone_id,
+                                                    spawn_pose.0,
+                                                    spawn_pose.1,
+                                                    spawn_pose.2,
+                                                    spawn_pose.3
+                                                );
+                                                world
+                                                    .spawn_player_entity(
+                                                        &snapshot_character.name,
+                                                        &snapshot_character.zone_id,
+                                                        (spawn_pose.0, spawn_pose.1, spawn_pose.2),
+                                                        spawn_pose.3,
+                                                        (
+                                                            snapshot_character.health,
+                                                            snapshot_character.max_health,
+                                                        ),
+                                                    )
+                                                    .unwrap_or_else(|_| {
+                                                        world
+                                                            .spawn_player_entity(
+                                                                &snapshot_character.name,
+                                                                "1",
+                                                                (
+                                                                    spawn_pose.0,
+                                                                    spawn_pose.1,
+                                                                    spawn_pose.2,
+                                                                ),
+                                                                spawn_pose.3,
+                                                                (
+                                                                    snapshot_character.health,
+                                                                    snapshot_character.max_health,
+                                                                ),
+                                                            )
+                                                            .expect("Failed to spawn player entity")
+                                                    })
+                                            };
+
                                             state
                                                 .session_store
                                                 .authenticate_session(
                                                     &session_id,
                                                     account_id,
-                                                    select_req.character_id,
+                                                    entity_id,
                                                     Some(character.id),
                                                 )
                                                 .await;
+
+                                            // Persist spawn pose immediately so re-joins use latest position
+                                            if let Err(e) = state
+                                                .account_service
+                                                .update_character_position(
+                                                    character.id,
+                                                    spawn_pose.0 as f64,
+                                                    spawn_pose.1 as f64,
+                                                    spawn_pose.2 as f64,
+                                                    spawn_pose.3 as f64,
+                                                )
+                                                .await
+                                            {
+                                                warn!(
+                                                    "Failed to persist spawn pose for character {}: {:?}",
+                                                    character.id, e
+                                                );
+                                            }
 
                                             if let Err(e) = state
                                                 .account_service
@@ -765,10 +863,18 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
                                                 );
                                             }
 
-                                            snapshot_to_send = Some(build_player_world_snapshot(
-                                                &snapshot_character,
-                                                select_req.character_id,
-                                            ));
+                                            snapshot_to_send = {
+                                                let world = state.world_state.read().await;
+                                                if let Some(session) = state
+                                                    .session_store
+                                                    .get_session(&session_id)
+                                                    .await
+                                                {
+                                                    build_world_snapshot(&world, &session)
+                                                } else {
+                                                    None
+                                                }
+                                            };
 
                                             match build_character_info(
                                                 &character,
@@ -862,18 +968,127 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
             }
             Message::Close(_) => {
                 info!("WebSocket connection closed for session: {}", session_id);
-                state.session_store.remove_session(&session_id).await;
                 break;
             }
             _ => {}
         }
     }
 
+    let session_snapshot = state.session_store.get_session(&session_id).await;
+
     state.session_store.set_sender(&session_id, None).await;
     drop(outgoing_tx);
-    let _ = send_task.await;
+    info!("Waiting for send task to finish for {}", session_id);
+    match tokio::time::timeout(Duration::from_secs(2), send_task).await {
+        Ok(join_res) => {
+            if let Err(e) = join_res {
+                warn!("Send task join error for {}: {:?}", session_id, e);
+            } else {
+                info!("Send task finished for {}", session_id);
+            }
+        }
+        Err(_) => {
+            warn!(
+                "Send task did not finish in time for {}, aborting",
+                session_id
+            );
+        }
+    }
 
-    // Clean up session on disconnect
+    info!("Beginning session cleanup for {}", session_id);
+
+    if let Some(session) = &session_snapshot {
+        info!(
+            "Cleanup state for session {}: player_id {:?}, character_id {:?}",
+            session_id, session.player_id, session.character_id
+        );
+
+        if let (Some(player_id), Some(character_id)) = (session.player_id, session.character_id) {
+            let pose_and_name = {
+                let world = state.world_state.read().await;
+                (
+                    world.get_player_pose(player_id),
+                    world.get_player_name(player_id),
+                )
+            };
+
+            if let Some((x, y, z, rot)) = pose_and_name.0 {
+                info!(
+                    "Persisting pose for session {} character {}: ({:.2}, {:.2}, {:.2}) rot {:.2}",
+                    session_id, character_id, x, y, z, rot
+                );
+
+                if let Err(e) = state
+                    .account_service
+                    .update_character_position(
+                        character_id,
+                        x as f64,
+                        y as f64,
+                        z as f64,
+                        rot as f64,
+                    )
+                    .await
+                {
+                    warn!(
+                        "Failed to persist character position for session {}: {:?}",
+                        session_id, e
+                    );
+                } else {
+                    info!(
+                        "Saved character {} position for session {}: ({:.2}, {:.2}, {:.2}) rot {:.2}",
+                        character_id, session_id, x, y, z, rot
+                    );
+                }
+            } else {
+                let diagnostics = {
+                    let world = state.world_state.read().await;
+                    let zone_id = world.get_player_zone_id(player_id);
+                    let has_entity = zone_id
+                        .and_then(|zid| {
+                            world
+                                .get_zone(zid)
+                                .and_then(|zone| zone.entities.get_entity(player_id))
+                        })
+                        .is_some();
+                    (zone_id, has_entity)
+                };
+
+                warn!(
+                    "No pose available to save for session {} (player_id {:?}), zone {:?}, entity_exists {}",
+                    session_id, session.player_id, diagnostics.0, diagnostics.1
+                );
+            }
+
+            if let Err(e) = state
+                .account_service
+                .set_character_online(character_id, false)
+                .await
+            {
+                warn!(
+                    "Failed to mark character offline for session {}: {:?}",
+                    session_id, e
+                );
+            }
+
+            let mut world = state.world_state.write().await;
+            world.remove_player(player_id);
+            // Also clear any duplicate stale entries by name
+            if let Some(name) = pose_and_name.1 {
+                world.remove_player_by_name(&name);
+            }
+        } else {
+            warn!(
+                "Session {} missing player_id or character_id during cleanup (player_id {:?}, character_id {:?})",
+                session_id, session.player_id, session.character_id
+            );
+        }
+    } else {
+        warn!(
+            "No session snapshot found during cleanup for {} (session already removed?)",
+            session_id
+        );
+    }
+
     state.session_store.remove_session(&session_id).await;
     info!("Session cleaned up: {}", session_id);
 }
@@ -889,27 +1104,6 @@ async fn send_session_envelope(state: &AppState, session_id: &Uuid, envelope: En
             error!("Failed to send envelope to {}: {:?}", session_id, err);
             false
         }
-    }
-}
-
-fn build_player_world_snapshot(
-    character: &db::models::Character,
-    synthetic_player_id: u64,
-) -> network::messages::WorldSnapshot {
-    let snapshot_id_i64 = chrono::Utc::now().timestamp_millis();
-    let snapshot_id = if snapshot_id_i64.is_negative() {
-        0
-    } else {
-        snapshot_id_i64 as u64
-    };
-
-    let entity = build_player_entity(character, synthetic_player_id);
-
-    network::messages::WorldSnapshot {
-        snapshot_id,
-        entities: vec![entity],
-        player_entity_id: synthetic_player_id,
-        zone_name: character.zone_id.clone(),
     }
 }
 
@@ -933,45 +1127,4 @@ fn build_character_info(
         max_resource: wire.max_resource,
         is_online,
     })
-}
-
-fn build_player_entity(
-    character: &db::models::Character,
-    entity_id: u64,
-) -> network::messages::Entity {
-    let movement_state = if character.health <= 0 {
-        network::messages::MovementState::Dead
-    } else {
-        network::messages::MovementState::Idle
-    };
-
-    network::messages::Entity {
-        id: entity_id,
-        entity_type: "player".to_string(),
-        position: network::messages::Vector3 {
-            x: character.position_x as f32,
-            y: character.position_y as f32,
-            z: character.position_z as f32,
-        },
-        rotation: network::messages::Vector3 {
-            x: 0.0,
-            y: character.rotation as f32,
-            z: 0.0,
-        },
-        state: network::messages::EntityState {
-            movement_state,
-            health_percent: calculate_health_percent(character.health, character.max_health),
-            display_name: character.name.clone(),
-        },
-    }
-}
-
-fn calculate_health_percent(current_health: i32, max_health: i32) -> f32 {
-    if max_health <= 0 {
-        return 1.0;
-    }
-
-    let clamped = current_health.clamp(0, max_health) as f32;
-    let max = max_health as f32;
-    (clamped / max).clamp(0.0, 1.0)
 }

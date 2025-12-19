@@ -32,6 +32,8 @@ pub struct MovementIntent {
     pub target_y: f32,
     pub target_z: f32,
     pub speed_modifier: f32,
+    pub stop_movement: bool,
+    pub rotation_y: f32,
 }
 
 /// Session store for managing connected clients
@@ -161,7 +163,11 @@ impl SessionStore {
 
     pub async fn get_active_sessions(&self) -> Vec<Session> {
         let sessions = self.sessions.read().await;
-        sessions.values().cloned().collect()
+        sessions
+            .values()
+            .filter(|s| s.sender.is_some())
+            .cloned()
+            .collect()
     }
 }
 

@@ -266,6 +266,32 @@ impl AccountService {
         Ok(())
     }
 
+    pub async fn update_character_position(
+        &self,
+        character_id: Uuid,
+        x: f64,
+        y: f64,
+        z: f64,
+        rotation: f64,
+    ) -> AccountResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE characters 
+            SET position_x = $1, position_y = $2, position_z = $3, rotation = $4, updated_at = NOW()
+            WHERE id = $5
+            "#,
+        )
+        .bind(x)
+        .bind(y)
+        .bind(z)
+        .bind(rotation)
+        .bind(character_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     // Private helper methods
 
     fn validate_username(&self, username: &str) -> AccountResult<()> {

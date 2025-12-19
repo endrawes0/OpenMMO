@@ -85,6 +85,12 @@ func _ready():
 	# Initialize UI state
 	_update_ui_for_state(ui_state_manager.get_current_state())
 
+func _notification(what):
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if client_networking:
+			client_networking.close_connection()
+		get_tree().quit()
+
 func _initialize_modules():
 	var session_modules = {}
 	if get_tree().has_meta("session_modules"):
@@ -453,13 +459,23 @@ func _on_world_snapshot_received(snapshot: Dictionary):
 	network_debug.add_message("World snapshot sync: " + str(snapshot.get("zone_name", "unknown")))
 	if game_state_manager:
 		game_state_manager.apply_world_snapshot(snapshot)
-	get_tree().set_meta("latest_world_snapshot", snapshot.duplicate(true))
+	var tree = get_tree()
+	if tree:
+		tree.set_meta("latest_world_snapshot", snapshot.duplicate(true))
 
-	if get_tree().current_scene == self and _pending_world_entry and not _has_entered_world:
+	if tree and tree.current_scene == self and _pending_world_entry and not _has_entered_world:
 		var character_data = _latest_character_data
 		if character_data.is_empty():
 			character_data = _build_character_from_snapshot(snapshot)
 		_enter_game_world(character_data)
+	elif not tree and Engine.is_editor_hint() == false:
+		# Fallback: if tree is not yet available, store on the SceneTree once ready
+		call_deferred("_cache_snapshot_later", snapshot.duplicate(true))
+
+func _cache_snapshot_later(snapshot: Dictionary):
+	var tree = get_tree()
+	if tree:
+		tree.set_meta("latest_world_snapshot", snapshot.duplicate(true))
 
 func _build_character_from_snapshot(snapshot: Dictionary) -> Dictionary:
 	var player_id = _u64_to_int(snapshot.get("player_entity_id", 0))

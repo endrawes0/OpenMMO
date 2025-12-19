@@ -15,6 +15,10 @@ var rotation_speed: float = 180.0  # degrees per second
 var is_moving: bool = false
 var target_position: Vector3 = Vector3.ZERO
 var current_velocity: Vector3 = Vector3.ZERO
+var _was_moving: bool = false
+var current_rotation_y: float = 0.0
+var last_sent_rotation_y: float = 0.0
+var rotation_epsilon: float = 0.01
 
 # Prediction and reconciliation
 var pending_movements: Array = []
@@ -24,22 +28,30 @@ var prediction_error_threshold: float = 0.1
 func _init():
 	pass
 
-func update(delta: float, input_vector: Vector2, jump_pressed: bool = false):
+func update(delta: float, input_vector: Vector2, rotation_y: float, jump_pressed: bool = false):
 	# Update movement based on input
 	var move_vector = Vector3(input_vector.x, 0, input_vector.y).normalized()
+	_was_moving = is_moving
+	current_rotation_y = rotation_y
 
 	if move_vector.length() > 0:
 		is_moving = true
 		current_velocity = move_vector * movement_speed
 
 		# Send movement intent to server
-		_send_movement_intent(target_position + move_vector * movement_speed * delta)
+		_send_movement_intent(target_position + move_vector * movement_speed * delta, false)
 	else:
 		is_moving = false
 		current_velocity = Vector3.ZERO
+		if _was_moving:
+			_send_movement_intent(target_position, true)
+		elif abs(current_rotation_y - last_sent_rotation_y) > rotation_epsilon:
+			_send_movement_intent(target_position, true)
 
 func set_target_position(position: Vector3):
 	target_position = position
+func set_rotation_y(rotation_y: float):
+	current_rotation_y = rotation_y
 
 func get_target_position() -> Vector3:
 	return target_position
@@ -50,7 +62,7 @@ func get_current_velocity() -> Vector3:
 func is_entity_moving() -> bool:
 	return is_moving
 
-func _send_movement_intent(target_pos: Vector3):
+func _send_movement_intent(target_pos: Vector3, stop_movement: bool):
 	var intent = {
 		"MovementIntent": {
 			"target_position": {
@@ -59,11 +71,13 @@ func _send_movement_intent(target_pos: Vector3):
 				"z": target_pos.z
 			},
 			"speed_modifier": 1.0,
-			"stop_movement": false
+			"stop_movement": stop_movement,
+			"rotation_y": current_rotation_y
 		}
 	}
 
 	emit_signal("movement_intent_sent", intent)
+	last_sent_rotation_y = current_rotation_y
 
 	# Store for prediction
 	pending_movements.append({
