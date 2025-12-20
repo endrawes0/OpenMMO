@@ -39,7 +39,7 @@ var _initial_rotation_applied := false
 var _initial_position_applied := false
 var _trust_server_position := false
 var _debug_local_delta := true
-var _camera_smooth_factor := 0.2
+var _camera_smooth_factor := 0.0
 var _prev_camera_focus: Vector3 = Vector3.ZERO
 var _player_position_reconcile_threshold := 0.3
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
@@ -200,11 +200,13 @@ func _update_camera_position() -> void:
 	var player_yaw = player.rotation.y
 	var yaw = player_yaw + camera_orbit_offset
 	var focus_point = player.global_position + Vector3(0, PLAYER_EYE_HEIGHT, 0)
-	if _prev_camera_focus == Vector3.ZERO:
-		_prev_camera_focus = focus_point
-	else:
-		_prev_camera_focus = _prev_camera_focus.lerp(focus_point, _camera_smooth_factor)
-		focus_point = _prev_camera_focus
+	# Optional smoothing (disabled by default)
+	if _camera_smooth_factor > 0.0:
+		if _prev_camera_focus == Vector3.ZERO:
+			_prev_camera_focus = focus_point
+		else:
+			_prev_camera_focus = _prev_camera_focus.lerp(focus_point, _camera_smooth_factor)
+			focus_point = _prev_camera_focus
 	
 	# Handle first person camera (very close to player)
 	if camera_distance <= CAMERA_MIN_DISTANCE:
