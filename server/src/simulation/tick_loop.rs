@@ -12,6 +12,7 @@ use crate::world::WorldState;
 use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
+use uuid::Uuid;
 use std::time::Duration;
 use tokio::time::interval;
 use tracing::{info, warn};
@@ -158,14 +159,14 @@ pub(crate) fn build_world_snapshot(
         .get_all_entities()
         .into_iter()
         .filter_map(|e| {
-            static LAST_SENT: OnceLock<Mutex<HashMap<u64, (f32, f32, f32, f32)>>> =
-                OnceLock::new();
+            static LAST_SENT: OnceLock<Mutex<HashMap<Uuid, HashMap<u64, (f32, f32, f32, f32)>>>> = OnceLock::new();
             let cache = LAST_SENT.get_or_init(|| Mutex::new(HashMap::new()));
             let mut last = cache.lock().ok()?;
 
+            let session_entry = last.entry(session.id).or_insert_with(HashMap::new);
             let id = e.id;
             let pos = e.position.as_ref()?;
-            let entry = last.entry(id).or_insert((pos.x, pos.y, pos.z, pos.rotation));
+            let entry = session_entry.entry(id).or_insert((pos.x, pos.y, pos.z, pos.rotation));
 
             let dx = (pos.x - entry.0).abs();
             let dy = (pos.y - entry.1).abs();
