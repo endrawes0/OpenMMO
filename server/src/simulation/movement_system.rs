@@ -107,24 +107,24 @@ impl MovementSystem {
         }
         if let (Some(position), Some(movement)) = (&mut entity.position, &mut entity.movement) {
             // Calculate direction vector
-            let dx = intent.target_x - position.x;
-            let dy = intent.target_y - position.y;
-            let dz = intent.target_z - position.z;
-            let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+                let dx = intent.target_x - position.x;
+                let dy = intent.target_y - position.y;
+                let dz = intent.target_z - position.z;
+                let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
-            if distance > 0.0 {
-                // Normalize direction and apply speed
-                let speed = movement.speed * intent.speed_modifier;
-                movement.velocity_x = (dx / distance) * speed;
-                movement.velocity_y = (dy / distance) * speed;
-                movement.velocity_z = (dz / distance) * speed;
-                movement.is_moving = true;
+                if distance > 0.0 {
+                    // Normalize direction and apply speed
+                    let speed = movement.speed * intent.speed_modifier;
+                    movement.velocity_x = (dx / distance) * speed;
+                    movement.velocity_y = (dy / distance) * speed;
+                    movement.velocity_z = (dz / distance) * speed;
+                    movement.is_moving = true;
 
-                // Update rotation to face movement direction
-                position.rotation = dy.atan2(dx);
+                    // Update rotation to face movement direction
+                    position.rotation = dx.atan2(dz);
+                }
             }
         }
-    }
 
     fn clamp_intent(entity: &Entity, intent: MovementIntent) -> MovementIntent {
         let mut adjusted = intent.clone();
