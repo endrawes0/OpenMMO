@@ -10,6 +10,8 @@ use crate::simulation::movement_system::{MovementIntent as SimMovementIntent, Mo
 use crate::simulation::CombatSystem;
 use crate::world::WorldState;
 use chrono::Utc;
+use HashMap;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tokio::time::interval;
 use tracing::{info, warn};
@@ -156,12 +158,12 @@ pub(crate) fn build_world_snapshot(
         .get_all_entities()
         .into_iter()
         .filter_map(|e| {
-            static LAST_SENT: once_cell::sync::Lazy<std::sync::Mutex<
-                std::collections::HashMap<u64, (f32, f32, f32, f32)>,
-            >> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            static LAST_SENT: OnceLock<Mutex<HashMap<u64, (f32, f32, f32, f32)>>> =
+                OnceLock::new();
+            let cache = LAST_SENT.get_or_init(|| Mutex::new(HashMap::new()));
+            let mut last = cache.lock().ok()?;
 
-            let mut last = LAST_SENT.lock().ok()?;
-            let id = e.id.0;
+            let id = e.id;
             let pos = e.position.as_ref()?;
             let entry = last.entry(id).or_insert((pos.x, pos.y, pos.z, pos.rotation));
 
