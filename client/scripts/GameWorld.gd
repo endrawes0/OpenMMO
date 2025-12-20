@@ -37,6 +37,7 @@ var _proxies_root: Node3D = null
 var _initial_snapshot_applied := false
 var _initial_rotation_applied := false
 var _initial_position_applied := false
+var _player_position_reconcile_threshold := 0.3
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
 const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
 const FEMALE_MODEL_PATH := "res://assets/models/Character/Superhero_Female_FullBody.gltf"
@@ -301,8 +302,6 @@ func _on_world_snapshot_received(snapshot: Dictionary) -> void:
 	_log_player_entity(snapshot)
 
 func _apply_authoritative_player_position() -> void:
-	if _initial_position_applied:
-		return
 	if not game_state_manager:
 		return
 	var player_id = game_state_manager.player_entity_id
@@ -314,10 +313,19 @@ func _apply_authoritative_player_position() -> void:
 	if not player_entity.has("position"):
 		return
 	var pos = player_entity.position
-	player.global_position = Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
-	if movement_system:
-		movement_system.set_target_position(player.global_position)
-	_initial_position_applied = true
+	var server_pos := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+	if not _initial_position_applied:
+		player.global_position = server_pos
+		if movement_system:
+			movement_system.set_target_position(player.global_position)
+		_initial_position_applied = true
+		return
+
+	var delta := player.global_position.distance_to(server_pos)
+	if delta > _player_position_reconcile_threshold:
+		player.global_position = server_pos
+		if movement_system:
+			movement_system.set_target_position(player.global_position)
 
 
 func _log_player_entity(snapshot: Dictionary) -> void:
