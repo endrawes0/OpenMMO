@@ -343,6 +343,24 @@ func _log_player_entity(snapshot: Dictionary) -> void:
 			move_state = str(st.movement_state)
 	print_debug("PlayerEntity id=%s %s %s movement_state=%s" % [str(player_id), pos_str, rot_str, move_state])
 
+
+func _log_remote_player(entity_id: int, entity_data: Dictionary) -> void:
+	var pos_str := ""
+	if entity_data.has("position"):
+		var p = entity_data.position
+		pos_str = "pos=(%.3f, %.3f, %.3f)" % [p.x, p.y, p.z]
+	var rot_str := ""
+	if entity_data.has("rotation"):
+		var r = entity_data.rotation
+		if typeof(r) == TYPE_DICTIONARY and r.has("y"):
+			rot_str = "rot_y=%.3f" % r.y
+	var move_state := ""
+	if entity_data.has("state"):
+		var st = entity_data.state
+		if typeof(st) == TYPE_DICTIONARY and st.has("movement_state"):
+			move_state = str(st.movement_state)
+	print_debug("RemotePlayer id=%s %s %s movement_state=%s" % [str(entity_id), pos_str, rot_str, move_state])
+
 func _apply_authoritative_player_rotation() -> void:
 	if _initial_rotation_applied:
 		return
@@ -438,6 +456,8 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if avatar_node and avatar_node.has_method("set_remote_movement_state"):
 		var state_dict: Dictionary = entity_data.get("state", {}) if entity_data.has("state") else {}
 		avatar_node.call_deferred("set_remote_movement_state", state_dict)
+		_log_remote_player(entity_id, entity_data)
+		_log_remote_player(entity_id, entity_data)
 
 func _despawn_proxy(entity_id: int) -> void:
 	if not entity_proxies.has(entity_id):
