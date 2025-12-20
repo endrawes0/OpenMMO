@@ -122,6 +122,23 @@ func update_motion(linear_velocity: Vector3, on_floor: bool, delta: float) -> vo
 		_update_animation_tree()
 
 
+func set_remote_movement_state(state: Dictionary) -> void:
+	# Used for proxies: drive animation based on server-reported movement_state.
+	if not animation_tree:
+		return
+	var movement_state := ""
+	if state.has("movement_state"):
+		movement_state = str(state.get("movement_state", "")).to_lower()
+	var target_blend: float = 0.0
+	if movement_state.find("walk") != -1:
+		target_blend = 0.4
+	elif movement_state.find("run") != -1 or movement_state.find("move") != -1:
+		target_blend = 0.8
+	speed_blend = target_blend
+	_in_air = movement_state.find("jump") != -1
+	_update_animation_tree()
+
+
 func _spawn_model() -> void:
 	if model_root:
 		model_root.queue_free()

@@ -349,6 +349,7 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 		var proxy = Node3D.new()
 		proxy.name = "EntityProxy_%s" % entity_id
 		var avatar: Node3D = AVATAR_SCRIPT.new()
+		avatar.name = "Avatar"
 		avatar.set("use_female_model", _is_female_entity(entity_data))
 		proxy.add_child(avatar)
 
@@ -379,6 +380,11 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	var label_node: Label3D = proxy_node.get_node_or_null("NameLabel")
 	if label_node:
 		label_node.text = _display_name_for_entity(entity_data)
+
+	var avatar_node: Node3D = proxy_node.get_node_or_null("Avatar")
+	if avatar_node and avatar_node.has_method("set_remote_movement_state"):
+		var state_dict := entity_data.get("state", {}) if entity_data.has("state") else {}
+		avatar_node.call_deferred("set_remote_movement_state", state_dict)
 
 func _despawn_proxy(entity_id: int) -> void:
 	if not entity_proxies.has(entity_id):
