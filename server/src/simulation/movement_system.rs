@@ -46,6 +46,7 @@ impl MovementSystem {
             .ok_or_else(|| format!("Player entity {} not found", intent.player_id))?;
 
         if intent.stop_movement {
+            // Preserve facing when stopping.
             if let Some(position) = &mut entity.position {
                 position.rotation = intent.rotation_y;
             }
@@ -107,17 +108,20 @@ impl MovementSystem {
         }
         if let (Some(position), Some(movement)) = (&mut entity.position, &mut entity.movement) {
             // Calculate direction vector
-                let dx = intent.target_x - position.x;
-                let dy = intent.target_y - position.y;
-                let dz = intent.target_z - position.z;
-                let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+            let dx = intent.target_x - position.x;
+            let dy = intent.target_y - position.y;
+            let dz = intent.target_z - position.z;
+            let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
-                if distance > 0.0 {
-                    // Normalize direction and apply speed
-                    let speed = movement.speed * intent.speed_modifier;
-                    movement.velocity_x = (dx / distance) * speed;
-                    movement.velocity_y = (dy / distance) * speed;
-                    movement.velocity_z = (dz / distance) * speed;
+            if distance > 0.0 {
+                // Apply the client-provided facing (authoritative from client input).
+                position.rotation = intent.rotation_y;
+
+                // Normalize direction and apply speed
+                let speed = movement.speed * intent.speed_modifier;
+                movement.velocity_x = (dx / distance) * speed;
+                movement.velocity_y = (dy / distance) * speed;
+                movement.velocity_z = (dz / distance) * speed;
                     movement.is_moving = true;
 
                     // Update rotation to face movement direction (Godot convention: forward is -Z)
