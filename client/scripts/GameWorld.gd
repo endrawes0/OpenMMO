@@ -39,6 +39,7 @@ var _initial_rotation_applied := false
 var _initial_position_applied := false
 var _trust_server_position := false
 var _debug_local_delta := true
+var _ignore_server_pose_for_local := true
 var _camera_smooth_factor := 0.0
 var _prev_camera_focus: Vector3 = Vector3.ZERO
 var _player_position_reconcile_threshold := 0.3
@@ -326,6 +327,8 @@ func _apply_authoritative_player_position() -> void:
 		return
 	var pos = player_entity.position
 	var server_pos := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+	if _ignore_server_pose_for_local:
+		return
 	if _trust_server_position:
 		player.global_position = server_pos
 		if movement_system:
