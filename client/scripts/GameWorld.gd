@@ -375,7 +375,7 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 		proxy_node.global_position = proxy_node.global_position.lerp(target, 0.5)
 	if entity_data.has("rotation"):
 		var rot = entity_data.rotation
-		proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y)
+		proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y) + PI
 
 	var label_node: Label3D = proxy_node.get_node_or_null("NameLabel")
 	if label_node:
