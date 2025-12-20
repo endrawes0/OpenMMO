@@ -10,7 +10,7 @@ use crate::simulation::movement_system::{MovementIntent as SimMovementIntent, Mo
 use crate::simulation::CombatSystem;
 use crate::world::WorldState;
 use chrono::Utc;
-use HashMap;
+use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tokio::time::interval;
@@ -174,7 +174,7 @@ pub(crate) fn build_world_snapshot(
 
             if dx > POS_EPSILON || dy > POS_EPSILON || dz > POS_EPSILON || drot > ROT_EPSILON {
                 *entry = (pos.x, pos.y, pos.z, pos.rotation);
-                entity_to_wire(e, POS_EPSILON, ROT_EPSILON)
+                entity_to_wire(e)
             } else {
                 None
             }
@@ -198,8 +198,6 @@ pub(crate) fn build_world_snapshot(
 
 pub(crate) fn entity_to_wire(
     entity: &GameEntity,
-    pos_epsilon: f32,
-    rot_epsilon: f32,
 ) -> Option<messages::Entity> {
     let position = entity.position.as_ref()?;
 
