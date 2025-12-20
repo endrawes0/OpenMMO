@@ -348,10 +348,21 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if not entity_proxies.has(entity_id):
 		var proxy = Node3D.new()
 		proxy.name = "EntityProxy_%s" % entity_id
-		var avatar: Node3D = AVATAR_SCRIPT.new()
-		avatar.name = "Avatar"
-		avatar.set("use_female_model", _is_female_entity(entity_data))
-		proxy.add_child(avatar)
+		var entity_type := str(entity_data.get("entity_type", "")).to_lower()
+		if entity_type == "player":
+			var avatar: Node3D = AVATAR_SCRIPT.new()
+			avatar.name = "Avatar"
+			avatar.set("use_female_model", _is_female_entity(entity_data))
+			proxy.add_child(avatar)
+		else:
+			var mesh_instance = MeshInstance3D.new()
+			var capsule = CapsuleMesh.new()
+			capsule.radius = 0.4
+			capsule.height = 2.0
+			mesh_instance.mesh = capsule
+			mesh_instance.material_override = _material_for_entity(entity_data)
+			mesh_instance.name = "Capsule"
+			proxy.add_child(mesh_instance)
 
 		var label = Label3D.new()
 		label.name = "NameLabel"
