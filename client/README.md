@@ -9,13 +9,13 @@ client/
 ├── project.godot          # Godot project configuration
 ├── scenes/                # Game scenes
 │   ├── Main.tscn         # UI scaffolding for auth/character flows
-│   └── GameWorld.tscn    # Placeholder zone with simple terrain + capsule player
+│   └── GameWorld.tscn    # Zone stub with terrain + animated player avatar
 ├── scripts/               # Scene-specific controllers (UI binding only)
 │   ├── Main.gd
 │   ├── NetworkDebug.gd
 │   └── GameWorld.gd
 ├── src/                   # Engine-agnostic modules (networking, movement, state, input, UI)
-├── assets/                # Empty placeholder folders + README stubs (no shipped art assets)
+├── assets/                # Imported models/textures (e.g., Superhero character pack under models/Character)
 └── export_presets.cfg    # Export configurations for desktop targets
 ```
 
@@ -39,10 +39,10 @@ Following AGENTS.md guidelines:
 - UI scaffolding for login/registration/character selection wired to engine-agnostic modules (no bundled backend)
 - Engine-agnostic networking, game state, input, movement, and UI state modules under `src/`
 - Transition from character selection into a placeholder GameWorld scene
-- Placeholder zone with simple terrain, basic lighting, and a capsule player with WASD + mouse orbit/zoom controls
+- Placeholder zone with simple terrain, basic lighting, and an animated player avatar (Superhero model + Universal Animation Library idle/walk/run) with WASD + mouse orbit/zoom controls
 - Network debug overlay for connection status text
 - Export presets for Windows, Linux, and macOS
-- Asset folders are empty aside from README stubs; no models, textures, audio, or UI art are shipped yet
+- Imported Character models/textures live under `assets/models/Character`; ensure licensing metadata accompanies any new assets
 
 ## Next Steps
 

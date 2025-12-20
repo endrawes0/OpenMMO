@@ -1,6 +1,7 @@
 [gd_scene load_steps=13 format=4 uid="uid://dq8y7n2jxqkr"]
 
 [ext_resource type="Script" uid="uid://c5ah0o1gvxu1q" path="res://scripts/GameWorld.gd" id="1_l7x5n"]
+[ext_resource type="Script" uid="uid://b2pt8gccsyhs1" path="res://scripts/PlayerAvatar.gd" id="2_avatar"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_b2dme"]
 albedo_color = Color(0.34, 0.48, 0.35, 1)
@@ -49,9 +50,6 @@ _surfaces = [{
 }]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_def456"]
-radius = 0.4
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_ghi789"]
 radius = 0.4
 
 [sub_resource type="Environment" id="Environment_b4j12"]
@@ -132,14 +130,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 1.5, 0)
 mesh = SubResource("ArrayMesh_eb18a")
 
 [node name="Player" type="CharacterBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
 shape = SubResource("CapsuleShape3D_def456")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Player"]
-material_override = SubResource("StandardMaterial3D_rock")
-mesh = SubResource("CapsuleMesh_ghi789")
+[node name="PlayerAvatar" type="Node3D" parent="Player"]
+script = ExtResource("2_avatar")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 4.5, 9.5)
@@ -147,3 +144,10 @@ environment = SubResource("Environment_b4j12")
 current = true
 fov = 60.0
 far = 500.0
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="PlayerName" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 16.0
+text = "Adventurer"

@@ -128,22 +128,7 @@ impl EntityManager {
                 position.y += movement.velocity_y * delta_time as f32;
                 position.z += movement.velocity_z * delta_time as f32;
 
-                // Apply friction/damping
-                let damping = 0.9;
-                movement.velocity_x *= damping;
-                movement.velocity_y *= damping;
-                movement.velocity_z *= damping;
-
-                // Stop if velocity is very low
-                if movement.velocity_x.abs() < 0.01
-                    && movement.velocity_y.abs() < 0.01
-                    && movement.velocity_z.abs() < 0.01
-                {
-                    movement.is_moving = false;
-                    movement.velocity_x = 0.0;
-                    movement.velocity_y = 0.0;
-                    movement.velocity_z = 0.0;
-                }
+                // Preserve velocity as provided by movement intents; no damping
             }
         }
     }

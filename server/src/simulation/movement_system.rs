@@ -30,6 +30,15 @@ impl MovementSystem {
         world_state: &mut WorldState,
         intent: MovementIntent,
     ) -> Result<(), String> {
+        tracing::debug!(
+            player_id = intent.player_id,
+            target_x = intent.target_x,
+            target_y = intent.target_y,
+            target_z = intent.target_z,
+            rotation_y = intent.rotation_y,
+            stop = intent.stop_movement,
+            "processing movement intent"
+        );
         // Get the player's zone
         let zone_id = world_state
             .ensure_player_zone_mapping(intent.player_id)
@@ -46,6 +55,7 @@ impl MovementSystem {
             .ok_or_else(|| format!("Player entity {} not found", intent.player_id))?;
 
         if intent.stop_movement {
+            // Preserve facing when stopping.
             if let Some(position) = &mut entity.position {
                 position.rotation = intent.rotation_y;
             }
@@ -80,9 +90,8 @@ impl MovementSystem {
 
         // Check speed limits
         let dx = intent.target_x - position.x;
-        let dy = intent.target_y - position.y;
         let dz = intent.target_z - position.z;
-        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let distance = (dx * dx + dz * dz).sqrt();
 
         let max_distance_per_tick =
             (movement.max_speed * intent.speed_modifier * Self::MAX_DISTANCE_FACTOR) / 20.0; // 20 TPS
@@ -92,6 +101,16 @@ impl MovementSystem {
                 distance, max_distance_per_tick
             ));
         }
+
+        tracing::debug!(
+            player_id = entity.id,
+            distance,
+            max_distance_per_tick,
+            target_x = intent.target_x,
+            target_y = intent.target_y,
+            target_z = intent.target_z,
+            "movement accepted"
+        );
 
         // TODO: Add collision detection
         // TODO: Add terrain validation
@@ -108,20 +127,19 @@ impl MovementSystem {
         if let (Some(position), Some(movement)) = (&mut entity.position, &mut entity.movement) {
             // Calculate direction vector
             let dx = intent.target_x - position.x;
-            let dy = intent.target_y - position.y;
             let dz = intent.target_z - position.z;
-            let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+            let distance = (dx * dx + dz * dz).sqrt();
+
+            // Keep Y in sync with intent (ground height) and zero vertical velocity.
+            position.y = intent.target_y;
+            movement.velocity_y = 0.0;
 
             if distance > 0.0 {
                 // Normalize direction and apply speed
                 let speed = movement.speed * intent.speed_modifier;
                 movement.velocity_x = (dx / distance) * speed;
-                movement.velocity_y = (dy / distance) * speed;
                 movement.velocity_z = (dz / distance) * speed;
                 movement.is_moving = true;
-
-                // Update rotation to face movement direction
-                position.rotation = dy.atan2(dx);
             }
         }
     }
