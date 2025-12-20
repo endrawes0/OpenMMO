@@ -30,6 +30,15 @@ impl MovementSystem {
         world_state: &mut WorldState,
         intent: MovementIntent,
     ) -> Result<(), String> {
+        tracing::debug!(
+            player_id = intent.player_id.0,
+            target_x = intent.target_x,
+            target_y = intent.target_y,
+            target_z = intent.target_z,
+            rotation_y = intent.rotation_y,
+            stop = intent.stop_movement,
+            "processing movement intent"
+        );
         // Get the player's zone
         let zone_id = world_state
             .ensure_player_zone_mapping(intent.player_id)
