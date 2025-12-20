@@ -131,11 +131,7 @@ impl MovementSystem {
                 movement.velocity_x = (dx / distance) * speed;
                 movement.velocity_y = (dy / distance) * speed;
                 movement.velocity_z = (dz / distance) * speed;
-                    movement.is_moving = true;
-
-                    // Update rotation to face movement direction (Godot convention: forward is -Z)
-                    position.rotation = (-dx).atan2(-dz);
-                }
+                movement.is_moving = true;
             }
         }
 
