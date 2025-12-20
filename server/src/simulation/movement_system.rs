@@ -131,6 +131,7 @@ impl MovementSystem {
                 movement.is_moving = true;
             }
         }
+    }
 
     fn clamp_intent(entity: &Entity, intent: MovementIntent) -> MovementIntent {
         let mut adjusted = intent.clone();
