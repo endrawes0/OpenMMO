@@ -371,11 +371,12 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 
 	if entity_data.has("position"):
 		var pos = entity_data.position
-		var target = Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
-		proxy_node.global_position = proxy_node.global_position.lerp(target, 0.5)
+		var target := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+		proxy_node.global_position = target
 	if entity_data.has("rotation"):
 		var rot = entity_data.rotation
-		proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y)
+		if typeof(rot) == TYPE_DICTIONARY and rot.has("y"):
+			proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y)
 
 	var label_node: Label3D = proxy_node.get_node_or_null("NameLabel")
 	if label_node:
