@@ -413,10 +413,6 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if avatar_node and avatar_node.has_method("set_remote_movement_state"):
 		var state_dict: Dictionary = entity_data.get("state", {}) if entity_data.has("state") else {}
 		avatar_node.call_deferred("set_remote_movement_state", state_dict)
-		if entity_data.has("rotation"):
-			var rot = entity_data.rotation
-			if typeof(rot) == TYPE_DICTIONARY and rot.has("y"):
-				avatar_node.rotation.y = rot.get("y", avatar_node.rotation.y)
 
 func _despawn_proxy(entity_id: int) -> void:
 	if not entity_proxies.has(entity_id):
