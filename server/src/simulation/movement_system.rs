@@ -90,9 +90,8 @@ impl MovementSystem {
 
         // Check speed limits
         let dx = intent.target_x - position.x;
-        let dy = intent.target_y - position.y;
         let dz = intent.target_z - position.z;
-        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let distance = (dx * dx + dz * dz).sqrt();
 
         let max_distance_per_tick =
             (movement.max_speed * intent.speed_modifier * Self::MAX_DISTANCE_FACTOR) / 20.0; // 20 TPS
@@ -128,15 +127,17 @@ impl MovementSystem {
         if let (Some(position), Some(movement)) = (&mut entity.position, &mut entity.movement) {
             // Calculate direction vector
             let dx = intent.target_x - position.x;
-            let dy = intent.target_y - position.y;
             let dz = intent.target_z - position.z;
-            let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+            let distance = (dx * dx + dz * dz).sqrt();
+
+            // Keep Y in sync with intent (ground height) and zero vertical velocity.
+            position.y = intent.target_y;
+            movement.velocity_y = 0.0;
 
             if distance > 0.0 {
                 // Normalize direction and apply speed
                 let speed = movement.speed * intent.speed_modifier;
                 movement.velocity_x = (dx / distance) * speed;
-                movement.velocity_y = (dy / distance) * speed;
                 movement.velocity_z = (dz / distance) * speed;
                 movement.is_moving = true;
             }
