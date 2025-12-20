@@ -300,6 +300,7 @@ func _on_world_snapshot_received(snapshot: Dictionary) -> void:
 	_apply_authoritative_player_rotation()
 	_apply_authoritative_player_position()
 	_log_player_entity(snapshot)
+	_update_hud_name()
 
 func _apply_authoritative_player_position() -> void:
 	if not game_state_manager:
@@ -368,6 +369,16 @@ func _log_remote_player(entity_id: int, entity_data: Dictionary) -> void:
 		if typeof(st) == TYPE_DICTIONARY and st.has("movement_state"):
 			move_state = str(st.movement_state)
 	print_debug("RemotePlayer id=%s %s %s movement_state=%s" % [str(entity_id), pos_str, rot_str, move_state])
+
+
+func _update_hud_name() -> void:
+	var hud_label: Label = get_node_or_null("HUD/PlayerName")
+	if not hud_label:
+		return
+	var name := "Adventurer"
+	if character_data.has("name"):
+		name = str(character_data.get("name"))
+	hud_label.text = name
 
 func _apply_authoritative_player_rotation() -> void:
 	if _initial_rotation_applied:

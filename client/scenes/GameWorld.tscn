@@ -144,3 +144,10 @@ environment = SubResource("Environment_b4j12")
 current = true
 fov = 60.0
 far = 500.0
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="PlayerName" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 16.0
+text = "Adventurer"
