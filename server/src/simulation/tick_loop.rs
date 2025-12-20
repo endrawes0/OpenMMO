@@ -145,6 +145,8 @@ pub(crate) fn build_world_snapshot(
     world: &WorldState,
     session: &crate::network::Session,
 ) -> Option<WorldSnapshot> {
+    const POS_EPSILON: f32 = 0.05; // 5 cm
+    const ROT_EPSILON: f32 = 0.01; // ~0.5 degrees
     let player_id = session.player_id?;
     let zone_id = world.get_player_zone_id(player_id)?;
     let zone = world.get_zone(zone_id)?;
@@ -153,7 +155,28 @@ pub(crate) fn build_world_snapshot(
         .entities
         .get_all_entities()
         .into_iter()
-        .filter_map(entity_to_wire)
+        .filter_map(|e| {
+            static LAST_SENT: once_cell::sync::Lazy<std::sync::Mutex<
+                std::collections::HashMap<u64, (f32, f32, f32, f32)>,
+            >> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+            let mut last = LAST_SENT.lock().ok()?;
+            let id = e.id.0;
+            let pos = e.position.as_ref()?;
+            let entry = last.entry(id).or_insert((pos.x, pos.y, pos.z, pos.rotation));
+
+            let dx = (pos.x - entry.0).abs();
+            let dy = (pos.y - entry.1).abs();
+            let dz = (pos.z - entry.2).abs();
+            let drot = (pos.rotation - entry.3).abs();
+
+            if dx > POS_EPSILON || dy > POS_EPSILON || dz > POS_EPSILON || drot > ROT_EPSILON {
+                *entry = (pos.x, pos.y, pos.z, pos.rotation);
+                entity_to_wire(e, POS_EPSILON, ROT_EPSILON)
+            } else {
+                None
+            }
+        })
         .collect::<Vec<_>>();
 
     let snapshot_id_i64 = Utc::now().timestamp_millis();
@@ -171,7 +194,11 @@ pub(crate) fn build_world_snapshot(
     })
 }
 
-pub(crate) fn entity_to_wire(entity: &GameEntity) -> Option<messages::Entity> {
+pub(crate) fn entity_to_wire(
+    entity: &GameEntity,
+    pos_epsilon: f32,
+    rot_epsilon: f32,
+) -> Option<messages::Entity> {
     let position = entity.position.as_ref()?;
 
     let movement_state = determine_movement_state(entity);
