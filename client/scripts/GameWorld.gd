@@ -383,7 +383,7 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 
 	var avatar_node: Node3D = proxy_node.get_node_or_null("Avatar")
 	if avatar_node and avatar_node.has_method("set_remote_movement_state"):
-		var state_dict := entity_data.get("state", {}) if entity_data.has("state") else {}
+		var state_dict: Dictionary = entity_data.get("state", {}) if entity_data.has("state") else {}
 		avatar_node.call_deferred("set_remote_movement_state", state_dict)
 
 func _despawn_proxy(entity_id: int) -> void:
