@@ -36,6 +36,9 @@ var entity_proxies: Dictionary = {}
 var _proxies_root: Node3D = null
 var _initial_snapshot_applied := false
 var _initial_rotation_applied := false
+const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
+const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
+const FEMALE_MODEL_PATH := "res://assets/models/Character/Superhero_Female_FullBody.gltf"
 
 func _ready() -> void:
 	_load_session_modules()
@@ -343,12 +346,9 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if not entity_proxies.has(entity_id):
 		var proxy = Node3D.new()
 		proxy.name = "EntityProxy_%s" % entity_id
-		var mesh_instance = MeshInstance3D.new()
-		mesh_instance.mesh = CapsuleMesh.new()
-		mesh_instance.mesh.radius = 0.4
-		mesh_instance.mesh.height = 2
-		mesh_instance.material_override = _material_for_entity(entity_data)
-		proxy.add_child(mesh_instance)
+		var avatar: Node3D = AVATAR_SCRIPT.new()
+		avatar.set("use_female_model", _is_female_entity(entity_data))
+		proxy.add_child(avatar)
 
 		var label = Label3D.new()
 		label.name = "NameLabel"
@@ -410,6 +410,19 @@ func _display_name_for_entity(entity_data: Dictionary) -> String:
 	if typeof(state) == TYPE_DICTIONARY and state.has("display_name"):
 		return str(state.get("display_name", "Entity"))
 	return "Entity"
+
+
+func _is_female_entity(entity_data: Dictionary) -> bool:
+	var state = entity_data.get("state", {})
+	if typeof(state) == TYPE_DICTIONARY:
+		if state.has("gender"):
+			var gender_val = str(state.get("gender", "")).to_lower()
+			return gender_val == "female" or gender_val == "f"
+		if state.has("class"):
+			# Placeholder heuristic; can be replaced with explicit metadata later.
+			var class_val = str(state.get("class", "")).to_lower()
+			return class_val.find("female") != -1
+	return false
 
 func _apply_cached_snapshot() -> void:
 	if _initial_snapshot_applied:

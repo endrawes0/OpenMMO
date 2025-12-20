@@ -1,13 +1,15 @@
 extends Node3D
 
-@export_file("*.tscn", "*.gltf", "*.glb") var model_scene_path := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
+@export_file("*.tscn", "*.gltf", "*.glb") var model_scene_path := ""
 @export var target_height: float = 1.8
 @export var model_y_offset: float = -1.0
+@export var use_female_model: bool = false
 @export var walk_swing_degrees: float = 28.0
 @export var idle_sway_degrees: float = 3.0
 @export var walk_cycle_frequency: float = 4.2
 
-const DEFAULT_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
+const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
+const FEMALE_MODEL_PATH := "res://assets/models/Character/Superhero_Female_FullBody.gltf"
 const ANIM_LIBRARY_PATH := "res://assets/animations/universal/AnimationLibrary_Godot_Standard.glb"
 const ANIM_LIBRARY_NAME := ""
 const ANIM_IDLE_NAMES := ["Idle_Loop", "Idle", "A_TPose"]
@@ -69,7 +71,6 @@ var _in_air := false
 
 
 func _ready() -> void:
-	print_debug("PlayerAvatar: _ready")
 	_spawn_model()
 
 
@@ -78,7 +79,6 @@ func update_motion(linear_velocity: Vector3, on_floor: bool, delta: float) -> vo
 		return
 
 	var now := _now_secs()
-	print_debug("update_motion t=%.3f on_floor=%s speed_blend=%.3f" % [now, str(on_floor), speed_blend])
 	var horizontal_speed: float = Vector3(linear_velocity.x, 0, linear_velocity.z).length()
 	var speed_ratio: float = clamp(horizontal_speed / 6.5, 0.0, 1.5)
 	speed_blend = lerp(speed_blend, speed_ratio, delta * 5.0)
@@ -89,7 +89,6 @@ func update_motion(linear_velocity: Vector3, on_floor: bool, delta: float) -> vo
 			_on_floor_time = 0.0
 			_off_floor_time = 0.0
 			_in_air = false
-			print_debug("PlayerAvatar: first ground contact at t=%.3f" % now)
 		else:
 			# Wait until we touch the ground once before driving air/ground.
 			return
@@ -104,10 +103,8 @@ func update_motion(linear_velocity: Vector3, on_floor: bool, delta: float) -> vo
 	# Simple debounce: need sustained off-floor to enter air.
 	if not _in_air and not on_floor and _off_floor_time > 0.15:
 		_in_air = true
-		print_debug("PlayerAvatar: set in_air true at t=%.3f (off_floor_time=%.3f)" % [now, _off_floor_time])
 	elif _in_air and on_floor:
 		_in_air = false
-		print_debug("PlayerAvatar: set in_air false at t=%.3f (on_floor_time=%.3f)" % [now, _on_floor_time])
 
 	_playing_jump_clip = false
 	_was_on_floor = on_floor
@@ -126,28 +123,31 @@ func update_motion(linear_velocity: Vector3, on_floor: bool, delta: float) -> vo
 
 
 func _spawn_model() -> void:
-	print_debug("PlayerAvatar: _spawn_model")
 	if model_root:
 		model_root.queue_free()
 		model_root = null
 		skeleton = null
 
-	var packed: PackedScene = ResourceLoader.load(model_scene_path) as PackedScene
+	var path_to_use := model_scene_path
+	if use_female_model or path_to_use == "":
+		path_to_use = FEMALE_MODEL_PATH if use_female_model else MALE_MODEL_PATH
+	var packed: PackedScene = ResourceLoader.load(path_to_use) as PackedScene
 	if packed is PackedScene:
 		model_root = packed.instantiate() as Node3D
 	else:
-		push_warning("Failed to load character model at %s" % model_scene_path)
-		# Always attempt the default path as a fallback.
-		if ResourceLoader.exists(DEFAULT_MODEL_PATH):
-			push_warning("Falling back to default model path %s" % DEFAULT_MODEL_PATH)
-			var fallback: PackedScene = ResourceLoader.load(DEFAULT_MODEL_PATH) as PackedScene
+		push_warning("Failed to load character model at %s" % path_to_use)
+		# Attempt the alternate gender path as a fallback if available.
+		var alternate := MALE_MODEL_PATH if use_female_model else FEMALE_MODEL_PATH
+		if ResourceLoader.exists(alternate):
+			push_warning("Falling back to alternate model path %s" % alternate)
+			var fallback: PackedScene = ResourceLoader.load(alternate) as PackedScene
 			if fallback:
 				model_root = fallback.instantiate() as Node3D
 			else:
-				push_warning("Fallback load also failed at %s" % DEFAULT_MODEL_PATH)
+				push_warning("Fallback load also failed at %s" % alternate)
 				return
 		else:
-			push_warning("Default model path missing: %s" % DEFAULT_MODEL_PATH)
+			push_warning("Alternate model path missing: %s" % alternate)
 			return
 
 	add_child(model_root)
@@ -265,7 +265,6 @@ func _setup_animation_players() -> void:
 
 
 func _load_animation_library() -> void:
-	print_debug("PlayerAvatar: loading animation library")
 	if not animation_player:
 		return
 
@@ -310,7 +309,6 @@ func _build_animation_tree() -> void:
 	else:
 		animation_tree.active = false
 		animation_tree.tree_root = null
-	print_debug("PlayerAvatar: building animation tree")
 
 	var idle_anim := _find_animation(ANIM_IDLE_NAMES)
 	var walk_anim := _find_animation(ANIM_WALK_NAMES)
@@ -375,7 +373,6 @@ func _find_animation(names: Array) -> String:
 		if animation_player.has_animation(name):
 			return name
 	var all_anims := animation_player.get_animation_list()
-	print_debug("PlayerAvatar: animations available=%s" % str(all_anims))
 	for candidate in all_anims:
 		var lower := String(candidate).to_lower()
 		for desired in names:
@@ -440,7 +437,6 @@ func _apply_translation(bone_name: String, offset: Vector3) -> void:
 
 
 func _retarget_library(lib: AnimationLibrary) -> void:
-	print_debug("PlayerAvatar: retargeting animation library")
 	for anim_name in lib.get_animation_list():
 		var anim: Animation = lib.get_animation(anim_name)
 		if not anim:
@@ -519,11 +515,9 @@ func _restart_jump_node() -> void:
 		return
 	animation_tree.set("parameters/jump/time", 0.0)
 	animation_tree.active = true
-	print_debug("PlayerAvatar: jump loop restart at t=%.3f" % _now_secs())
 
 
 func _play_jump_start() -> void:
-	print_debug("PlayerAvatar: _play_jump_start invoked")
 	if _jump_start_clip != "":
 		if animation_tree:
 			animation_tree.active = false
@@ -532,19 +526,16 @@ func _play_jump_start() -> void:
 		if _jump_loop_clip != "":
 			animation_player.queue(_jump_loop_clip)
 		_playing_jump_clip = true
-		print_debug("PlayerAvatar: playing jump start %s at t=%.3f" % [_jump_start_clip, _now_secs()])
 		return
 	_restart_jump_node()
 
 
 func _play_jump_land() -> void:
-	print_debug("PlayerAvatar: _play_jump_land invoked")
 	if _jump_land_clip != "":
 		if animation_tree:
 			animation_tree.active = false
 		animation_player.stop()
 		animation_player.play(_jump_land_clip, 0.15)
-		print_debug("PlayerAvatar: playing jump land %s at t=%.3f" % [_jump_land_clip, _now_secs()])
 		_playing_jump_clip = true
 		return
 	animation_tree.active = true
@@ -553,17 +544,15 @@ func _play_jump_land() -> void:
 
 
 func _on_animation_finished(anim_name: StringName) -> void:
-	print_debug("PlayerAvatar: animation finished %s" % str(anim_name))
 	if anim_name == _jump_start_clip and _in_air:
 		# Jump loop (if queued) keeps playing on AnimationPlayer while tree is off.
-		print_debug("PlayerAvatar: jump start finished -> loop at t=%.3f" % _now_secs())
+		pass
 	elif anim_name == _jump_land_clip:
 		animation_tree.active = true
 		animation_player.stop()
 		_playing_jump_clip = false
 		_jump_started = false
 		_in_air = false
-		print_debug("PlayerAvatar: jump land finished -> tree at t=%.3f" % _now_secs())
 
 
 func _now_secs() -> float:
