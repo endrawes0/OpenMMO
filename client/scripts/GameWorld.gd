@@ -42,6 +42,9 @@ var _debug_local_delta := true
 var _ignore_server_pose_for_local := true
 var _camera_smooth_factor := 0.0
 var _prev_camera_focus: Vector3 = Vector3.ZERO
+var _player_reconcile_threshold := 0.5
+var _player_reconcile_lerp := 0.2
+var _debug_local_delta := false
 var _player_position_reconcile_threshold := 0.3
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
 const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
@@ -329,12 +332,6 @@ func _apply_authoritative_player_position() -> void:
 	var server_pos := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
 	if _ignore_server_pose_for_local:
 		return
-	if _trust_server_position:
-		player.global_position = server_pos
-		if movement_system:
-			movement_system.set_target_position(player.global_position)
-		_initial_position_applied = true
-		return
 
 	if not _initial_position_applied:
 		player.global_position = server_pos
@@ -344,11 +341,17 @@ func _apply_authoritative_player_position() -> void:
 		return
 
 	var delta := player.global_position.distance_to(server_pos)
-	if delta > _player_position_reconcile_threshold:
+	if delta > _player_reconcile_threshold:
+		# Apply a gentle lerp toward server to avoid visible jitter, but still converge.
+		player.global_position = player.global_position.lerp(server_pos, _player_reconcile_lerp)
+		if movement_system:
+			movement_system.set_target_position(player.global_position)
+	elif _trust_server_position:
 		player.global_position = server_pos
 		if movement_system:
 			movement_system.set_target_position(player.global_position)
-	elif _debug_local_delta and delta > 0.01:
+
+	if _debug_local_delta and delta > 0.01:
 		print_debug("LocalPlayer delta_to_server=%.4f client_pos=(%.3f, %.3f, %.3f) server_pos=(%.3f, %.3f, %.3f)" % [
 			delta,
 			player.global_position.x, player.global_position.y, player.global_position.z,
