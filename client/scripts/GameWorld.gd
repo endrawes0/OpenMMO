@@ -16,6 +16,7 @@ const MIN_FLOOR_Y := 0.5  # Safety floor to keep the player above terrain
 @onready var gravity_value: float = ProjectSettings.get_setting("physics/3d/default_gravity") * 1.2  # Increased by 20%
 @onready var camera: Camera3D = $Camera3D
 @onready var player: CharacterBody3D = $Player
+@onready var player_avatar: Node3D = $Player/PlayerAvatar
 @onready var spawn_point: Marker3D = $Zone/SpawnPoint
 
 var client_networking = null
@@ -179,6 +180,8 @@ func _update_player_movement(delta: float) -> void:
 	if movement_system:
 		movement_system.set_target_position(player.global_position)
 		movement_system.update(delta, input_vector, player.rotation.y)
+	if player_avatar and player_avatar.has_method("update_motion"):
+		player_avatar.call("update_motion", player.velocity, player.is_on_floor(), delta)
 
 func _update_camera_position() -> void:
 	if not camera:
