@@ -298,6 +298,7 @@ func _on_world_snapshot_received(snapshot: Dictionary) -> void:
 	_sync_entity_proxies()
 	_apply_authoritative_player_rotation()
 	_apply_authoritative_player_position()
+	_log_player_entity(snapshot)
 
 func _apply_authoritative_player_position() -> void:
 	if _initial_position_applied:
@@ -317,6 +318,30 @@ func _apply_authoritative_player_position() -> void:
 	if movement_system:
 		movement_system.set_target_position(player.global_position)
 	_initial_position_applied = true
+
+
+func _log_player_entity(snapshot: Dictionary) -> void:
+	if not game_state_manager:
+		return
+	var player_id = game_state_manager.player_entity_id
+	var player_entity = game_state_manager.get_entity(player_id)
+	if player_entity.is_empty():
+		return
+	var pos_str := ""
+	if player_entity.has("position"):
+		var p = player_entity.position
+		pos_str = "pos=(%.3f, %.3f, %.3f)" % [p.x, p.y, p.z]
+	var rot_str := ""
+	if player_entity.has("rotation"):
+		var r = player_entity.rotation
+		if typeof(r) == TYPE_DICTIONARY and r.has("y"):
+			rot_str = "rot_y=%.3f" % r.y
+	var move_state := ""
+	if player_entity.has("state"):
+		var st = player_entity.state
+		if typeof(st) == TYPE_DICTIONARY and st.has("movement_state"):
+			move_state = str(st.movement_state)
+	print_debug("PlayerEntity id=%s %s %s movement_state=%s" % [str(player_id), pos_str, rot_str, move_state])
 
 func _apply_authoritative_player_rotation() -> void:
 	if _initial_rotation_applied:
