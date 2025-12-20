@@ -37,7 +37,6 @@ var _proxies_root: Node3D = null
 var _initial_snapshot_applied := false
 var _initial_rotation_applied := false
 var _initial_position_applied := false
-var _proxy_last_positions: Dictionary = {}
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
 const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
 const FEMALE_MODEL_PATH := "res://assets/models/Character/Superhero_Female_FullBody.gltf"
@@ -439,13 +438,11 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if not is_instance_valid(proxy_node):
 		entity_proxies.erase(entity_id)
 		return
-	var previous_pos: Vector3 = _proxy_last_positions.get(entity_id, proxy_node.global_position)
 
 	if entity_data.has("position"):
 		var pos = entity_data.position
 		var target := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
 		proxy_node.global_position = target
-		_proxy_last_positions[entity_id] = target
 	if entity_data.has("rotation"):
 		var rot = entity_data.rotation
 		if typeof(rot) == TYPE_DICTIONARY and rot.has("y"):
@@ -460,22 +457,6 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 		var state_dict: Dictionary = entity_data.get("state", {}) if entity_data.has("state") else {}
 		avatar_node.call_deferred("set_remote_movement_state", state_dict)
 		_log_remote_player(entity_id, entity_data)
-
-	# If no usable rotation provided, infer facing from movement delta.
-	if entity_type == "player":
-		var has_rot := entity_data.has("rotation")
-		var applied_rot := false
-		if has_rot:
-			var rot = entity_data.rotation
-			if typeof(rot) == TYPE_DICTIONARY and rot.has("y"):
-				proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y)
-				applied_rot = true
-		if not applied_rot and _proxy_last_positions.has(entity_id):
-			var delta: Vector3 = proxy_node.global_position - previous_pos
-			delta.y = 0.0
-			if delta.length() > 0.05:
-				proxy_node.rotation.y = atan2(delta.x, delta.z)
-				print_debug("RemotePlayer id=%s inferred_rot=%.3f from delta=(%.3f, %.3f, %.3f)" % [str(entity_id), proxy_node.rotation.y, delta.x, delta.y, delta.z])
 		_log_remote_player(entity_id, entity_data)
 
 func _despawn_proxy(entity_id: int) -> void:
@@ -485,7 +466,6 @@ func _despawn_proxy(entity_id: int) -> void:
 	if is_instance_valid(proxy):
 		proxy.queue_free()
 	entity_proxies.erase(entity_id)
-	_proxy_last_positions.erase(entity_id)
 
 func _material_for_entity(entity_data: Dictionary) -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()
