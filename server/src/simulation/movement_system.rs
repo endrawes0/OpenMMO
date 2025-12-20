@@ -103,6 +103,16 @@ impl MovementSystem {
             ));
         }
 
+        tracing::debug!(
+            player_id = entity.id.0,
+            distance,
+            max_distance_per_tick,
+            target_x = intent.target_x,
+            target_y = intent.target_y,
+            target_z = intent.target_z,
+            "movement accepted"
+        );
+
         // TODO: Add collision detection
         // TODO: Add terrain validation
         // TODO: Add zone boundary checks
