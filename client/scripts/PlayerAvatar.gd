@@ -135,7 +135,9 @@ func set_remote_movement_state(state: Dictionary) -> void:
 	elif movement_state.find("run") != -1 or movement_state.find("move") != -1:
 		target_blend = 0.8
 	speed_blend = target_blend
-	_in_air = movement_state.find("jump") != -1
+	var airborne := movement_state.find("jump") != -1 or movement_state.find("air") != -1
+	_in_air = airborne
+	_ground_air_amount = 1.0 if airborne else 0.0
 	_update_animation_tree()
 
 
