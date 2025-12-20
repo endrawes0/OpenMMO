@@ -12,10 +12,10 @@ use crate::world::WorldState;
 use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
-use uuid::Uuid;
 use std::time::Duration;
 use tokio::time::interval;
 use tracing::{info, warn};
+use uuid::Uuid;
 
 /// Target ticks per second for the simulation
 const TARGET_TPS: f64 = 20.0;
@@ -159,26 +159,32 @@ pub(crate) fn build_world_snapshot(
         .get_all_entities()
         .into_iter()
         .filter_map(|e| {
-            static LAST_SENT: OnceLock<Mutex<HashMap<Uuid, HashMap<u64, (f32, f32, f32, f32)>>>> = OnceLock::new();
+            static LAST_SENT: OnceLock<Mutex<HashMap<Uuid, HashMap<u64, (f32, f32, f32, f32)>>>> =
+                OnceLock::new();
             let cache = LAST_SENT.get_or_init(|| Mutex::new(HashMap::new()));
             let mut last = cache.lock().ok()?;
 
             let session_entry = last.entry(session.id).or_insert_with(HashMap::new);
             let id = e.id;
             let pos = e.position.as_ref()?;
-            let entry = session_entry.entry(id).or_insert((pos.x, pos.y, pos.z, pos.rotation));
+            let entry = session_entry
+                .entry(id)
+                .or_insert((pos.x, pos.y, pos.z, pos.rotation));
 
             let dx = (pos.x - entry.0).abs();
             let dy = (pos.y - entry.1).abs();
             let dz = (pos.z - entry.2).abs();
             let drot = (pos.rotation - entry.3).abs();
 
+            let mut pose_to_send = *entry;
             if dx > POS_EPSILON || dy > POS_EPSILON || dz > POS_EPSILON || drot > ROT_EPSILON {
-                *entry = (pos.x, pos.y, pos.z, pos.rotation);
-                entity_to_wire(e)
-            } else {
-                None
+                pose_to_send = (pos.x, pos.y, pos.z, pos.rotation);
+                *entry = pose_to_send;
             }
+
+            // Release lock before serialization to avoid holding across allocations.
+            drop(last);
+            entity_to_wire(e, Some(pose_to_send))
         })
         .collect::<Vec<_>>();
 
@@ -199,8 +205,14 @@ pub(crate) fn build_world_snapshot(
 
 pub(crate) fn entity_to_wire(
     entity: &GameEntity,
+    override_pose: Option<(f32, f32, f32, f32)>,
 ) -> Option<messages::Entity> {
-    let position = entity.position.as_ref()?;
+    let (px, py, pz, prot) = if let Some(p) = override_pose {
+        p
+    } else {
+        let position = entity.position.as_ref()?;
+        (position.x, position.y, position.z, position.rotation)
+    };
 
     let movement_state = determine_movement_state(entity);
     let health_percent = entity
@@ -219,13 +231,13 @@ pub(crate) fn entity_to_wire(
         id: entity.id,
         entity_type: entity_type_name(&entity.entity_type).to_string(),
         position: Vector3 {
-            x: position.x,
-            y: position.y,
-            z: position.z,
+            x: px,
+            y: py,
+            z: pz,
         },
         rotation: Vector3 {
             x: 0.0,
-            y: position.rotation,
+            y: prot,
             z: 0.0,
         },
         state: messages::EntityState {
