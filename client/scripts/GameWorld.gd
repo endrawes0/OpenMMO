@@ -454,7 +454,8 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if entity_data.has("rotation"):
 		var rot = entity_data.rotation
 		if typeof(rot) == TYPE_DICTIONARY and rot.has("y"):
-			proxy_node.rotation.y = rot.get("y", proxy_node.rotation.y)
+			var target_rot := rot.get("y", proxy_node.rotation.y)
+			proxy_node.rotation.y = lerp_angle(proxy_node.rotation.y, target_rot, 0.4)
 
 	var label_node: Label3D = proxy_node.get_node_or_null("NameLabel")
 	if label_node:
