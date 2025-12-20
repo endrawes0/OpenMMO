@@ -31,7 +31,7 @@ impl MovementSystem {
         intent: MovementIntent,
     ) -> Result<(), String> {
         tracing::debug!(
-            player_id = intent.player_id.0,
+            player_id = intent.player_id,
             target_x = intent.target_x,
             target_y = intent.target_y,
             target_z = intent.target_z,
