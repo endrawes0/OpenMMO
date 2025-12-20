@@ -123,9 +123,6 @@ impl MovementSystem {
             let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
             if distance > 0.0 {
-                // Apply the client-provided facing (authoritative from client input).
-                position.rotation = intent.rotation_y;
-
                 // Normalize direction and apply speed
                 let speed = movement.speed * intent.speed_modifier;
                 movement.velocity_x = (dx / distance) * speed;
