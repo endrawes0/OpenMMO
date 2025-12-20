@@ -461,7 +461,12 @@ func _spawn_or_update_proxy(entity_id: int, entity_data: Dictionary) -> void:
 	if entity_data.has("position"):
 		var pos = entity_data.position
 		var target := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
-		proxy_node.global_position = target
+		var current_pos: Vector3 = proxy_node.global_position
+		var dist := current_pos.distance_to(target)
+		if dist > 2.0:
+			proxy_node.global_position = target
+		else:
+			proxy_node.global_position = current_pos.lerp(target, 0.35)
 	if entity_data.has("rotation"):
 		var rot = entity_data.rotation
 		if typeof(rot) == TYPE_DICTIONARY and rot.has("y"):
