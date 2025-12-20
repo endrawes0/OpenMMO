@@ -37,7 +37,8 @@ var _proxies_root: Node3D = null
 var _initial_snapshot_applied := false
 var _initial_rotation_applied := false
 var _initial_position_applied := false
-var _player_position_reconcile_threshold := 0.3
+var _player_snap_distance := 2.0
+var _player_lerp_factor := 0.2
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
 const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
 const FEMALE_MODEL_PATH := "res://assets/models/Character/Superhero_Female_FullBody.gltf"
@@ -323,8 +324,12 @@ func _apply_authoritative_player_position() -> void:
 		return
 
 	var delta := player.global_position.distance_to(server_pos)
-	if delta > _player_position_reconcile_threshold:
+	if delta > _player_snap_distance:
 		player.global_position = server_pos
+		if movement_system:
+			movement_system.set_target_position(player.global_position)
+	else:
+		player.global_position = player.global_position.lerp(server_pos, _player_lerp_factor)
 		if movement_system:
 			movement_system.set_target_position(player.global_position)
 
