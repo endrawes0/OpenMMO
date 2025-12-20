@@ -36,6 +36,7 @@ var entity_proxies: Dictionary = {}
 var _proxies_root: Node3D = null
 var _initial_snapshot_applied := false
 var _initial_rotation_applied := false
+var _initial_position_applied := false
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
 const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
 const FEMALE_MODEL_PATH := "res://assets/models/Character/Superhero_Female_FullBody.gltf"
@@ -299,8 +300,23 @@ func _on_world_snapshot_received(snapshot: Dictionary) -> void:
 	_apply_authoritative_player_position()
 
 func _apply_authoritative_player_position() -> void:
-	# Client-only movement: no server snapping for the local player to avoid slowdown jitter
-	return
+	if _initial_position_applied:
+		return
+	if not game_state_manager:
+		return
+	var player_id = game_state_manager.player_entity_id
+	if player_id == 0:
+		return
+	var player_entity = game_state_manager.get_entity(player_id)
+	if player_entity.is_empty():
+		return
+	if not player_entity.has("position"):
+		return
+	var pos = player_entity.position
+	player.global_position = Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+	if movement_system:
+		movement_system.set_target_position(player.global_position)
+	_initial_position_applied = true
 
 func _apply_authoritative_player_rotation() -> void:
 	if _initial_rotation_applied:
