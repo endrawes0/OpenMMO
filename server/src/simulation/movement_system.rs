@@ -104,7 +104,7 @@ impl MovementSystem {
         }
 
         tracing::debug!(
-            player_id = entity.id.0,
+            player_id = entity.id,
             distance,
             max_distance_per_tick,
             target_x = intent.target_x,
