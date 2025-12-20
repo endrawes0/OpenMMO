@@ -114,6 +114,8 @@ func _initialize_player() -> void:
 		player.global_transform.origin = spawn_point.global_transform.origin
 	if movement_system:
 		movement_system.set_target_position(player.global_position)
+	if player_avatar and player_avatar.has_method("set"):
+		player_avatar.set("use_female_model", _is_female_character(character_data))
 	if game_state_manager:
 		var player_id = _u64_to_int(character_data.get("id", 0))
 		if player_id > 0:
@@ -413,8 +415,18 @@ func _display_name_for_entity(entity_data: Dictionary) -> String:
 
 
 func _is_female_entity(entity_data: Dictionary) -> bool:
+	# Prefer explicit gender provided by the server on the entity or its state.
+	if entity_data.has("gender"):
+		var g = str(entity_data.get("gender", "")).to_lower()
+		if g == "female" or g == "f":
+			return true
+		if g == "male" or g == "m":
+			return false
 	var state = entity_data.get("state", {})
 	if typeof(state) == TYPE_DICTIONARY:
+		if state.has("gender"):
+			var gender_val = str(state.get("gender", "")).to_lower()
+			return gender_val == "female" or gender_val == "f"
 		if state.has("gender"):
 			var gender_val = str(state.get("gender", "")).to_lower()
 			return gender_val == "female" or gender_val == "f"
@@ -422,6 +434,16 @@ func _is_female_entity(entity_data: Dictionary) -> bool:
 			# Placeholder heuristic; can be replaced with explicit metadata later.
 			var class_val = str(state.get("class", "")).to_lower()
 			return class_val.find("female") != -1
+	return false
+
+
+func _is_female_character(char_data: Dictionary) -> bool:
+	if char_data.has("gender"):
+		var g = str(char_data.get("gender", "")).to_lower()
+		return g == "female" or g == "f"
+	if char_data.has("class"):
+		var c = str(char_data.get("class", "")).to_lower()
+		return c.find("female") != -1
 	return false
 
 func _apply_cached_snapshot() -> void:
