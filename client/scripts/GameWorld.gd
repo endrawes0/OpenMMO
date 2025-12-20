@@ -37,6 +37,8 @@ var _proxies_root: Node3D = null
 var _initial_snapshot_applied := false
 var _initial_rotation_applied := false
 var _initial_position_applied := false
+var _trust_server_position := true
+var _debug_local_delta := true
 var _player_position_reconcile_threshold := 0.3
 const AVATAR_SCRIPT := preload("res://scripts/PlayerAvatar.gd")
 const MALE_MODEL_PATH := "res://assets/models/Character/Superhero_Male_FullBody.gltf"
@@ -315,6 +317,13 @@ func _apply_authoritative_player_position() -> void:
 		return
 	var pos = player_entity.position
 	var server_pos := Vector3(pos.x, max(pos.y, MIN_FLOOR_Y), pos.z)
+	if _trust_server_position:
+		player.global_position = server_pos
+		if movement_system:
+			movement_system.set_target_position(player.global_position)
+		_initial_position_applied = true
+		return
+
 	if not _initial_position_applied:
 		player.global_position = server_pos
 		if movement_system:
@@ -327,6 +336,12 @@ func _apply_authoritative_player_position() -> void:
 		player.global_position = server_pos
 		if movement_system:
 			movement_system.set_target_position(player.global_position)
+	elif _debug_local_delta and delta > 0.01:
+		print_debug("LocalPlayer delta_to_server=%.4f client_pos=(%.3f, %.3f, %.3f) server_pos=(%.3f, %.3f, %.3f)" % [
+			delta,
+			player.global_position.x, player.global_position.y, player.global_position.z,
+			server_pos.x, server_pos.y, server_pos.z
+		])
 
 
 func _log_player_entity(snapshot: Dictionary) -> void:
